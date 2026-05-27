@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  own-postgres:
+    image: postgres:15
+    container_name: ops_own_db
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: ops_auth
+    ports:
+      - "5433:5432"   # 5433 use karo taaki production DB ke saath conflict na ho
+    volumes:
+      - own_postgres_data:/var/lib/postgresql/data
+volumes:
+  own_postgres_data:
