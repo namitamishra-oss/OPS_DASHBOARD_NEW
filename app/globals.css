@@ -1,26 +1,89 @@
-@import "tailwindcss";
+/**
+ * app/globals.css
+ *
+ * Colors from designs:
+ *   Teal (primary):   #1a9e8c
+ *   Orange (accent):  #e07b18
+ *   Red (accent):     #d94f3d
+ *   Purple (accent):  #7c3aed  (used in scrubbing/failures badges)
+ *   Background:       #f5f4f0  (warm off-white)
+ *   Text primary:     #111111
+ *   Text secondary:   #6b7280
+ *   Border:           #e5e7eb
+ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Brand colors — exact values from design */
+  --color-teal:         #1a9e8c;
+  --color-teal-dark:    #158a7a;
+  --color-teal-light:   #e8f5f3;
+  --color-orange:       #e07b18;
+  --color-red:          #d94f3d;
+  --color-purple:       #7c3aed;
+  --color-amber:        #d97706;
+
+  /* Neutral */
+  --color-bg:           #f5f4f0;
+  --color-surface:      #ffffff;
+  --color-border:       #e5e7eb;
+  --color-border-light: #f3f4f6;
+
+  /* Text */
+  --color-text-primary:   #111111;
+  --color-text-secondary: #6b7280;
+  --color-text-muted:     #9ca3af;
+  --color-text-teal:      #5b9e98;
+
+  /* Status colors */
+  --color-success:        #16a34a;
+  --color-success-bg:     #f0fdf4;
+  --color-error:          #dc2626;
+  --color-error-bg:       #fef2f2;
+  --color-warning:        #d97706;
+  --color-warning-bg:     #fffbeb;
+
+  /* Font */
+  --font-sans: var(--font-dm-sans), 'DM Sans', system-ui, sans-serif;
+
+  /* Spacing */
+  --sidebar-width: 200px;
+  --topbar-height: 44px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+html, body {
+  height: 100%;
+  font-family: var(--font-sans);
+  color: var(--color-text-primary);
+  background: var(--color-bg);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Scrollbar styling — subtle, matches design aesthetic */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+/* Focus visible — accessibility */
+:focus-visible {
+  outline: 2px solid var(--color-teal);
+  outline-offset: 2px;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
-}
+/* Remove focus ring for mouse users */
+:focus:not(:focus-visible) { outline: none; }
+
+/* Links */
+a { color: inherit; text-decoration: none; }

@@ -24,5 +24,5 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 INSERT INTO dashboard_users (email, name, role)
 VALUES
   ('admin@yourcompany.com', 'Admin', 'admin'),
-  ('ops@yourcompany.com', 'Ops Team', 'viewer')
+  ('namita.mishra@pinnacle.in', 'Ops Team', 'viewer')
 ON CONFLICT DO NOTHING;

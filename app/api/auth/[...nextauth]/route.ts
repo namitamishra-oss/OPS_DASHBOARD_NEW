@@ -1,74 +1,88 @@
-// app/api/auth/[...nextauth]/route.ts
-import NextAuth from 'next-auth'
-import CredentialsProvider from 'next-auth/providers/credentials'
-import GoogleProvider from 'next-auth/providers/google'
-import { queryOwn } from '@/lib/db-own'
+/**
+ * NEXTAUTH ROUTE — SIMPLIFIED (No DB dependency)
+ * DB issue fix hone tak yeh use karo
+ * Allowed emails hardcoded hain — baad mein DB se lenge
+ */
 
-const handler = NextAuth({
+import NextAuth, { NextAuthOptions } from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
+
+// Allowed operators — jinhe dashboard access hai
+// Baad mein yeh DB se aayega
+const ALLOWED_USERS = [
+  { id: "1", email: "ops@goflipo.in",   name: "Ops Team",  role: "admin" },
+  { id: "2", email: "admin@goflipo.in", name: "Admin",     role: "admin" },
+  // Aur emails yahan add karo as needed
+];
+
+export const authOptions: NextAuthOptions = {
   providers: [
-    // Phase 1: Simple email+password (apni approved list se)
     CredentialsProvider({
-      name: 'Email',
+      name: "Credentials",
       credentials: {
-        email: { label: 'Email', type: 'email' },
-        password: { label: 'Password', type: 'password' },
+        email:    { label: "Operator ID", type: "email"    },
+        password: { label: "Passcode",    type: "password" },
       },
+
       async authorize(credentials) {
-        if (!credentials?.email) return null
+        if (!credentials?.email || !credentials?.password) return null;
 
-        // Sirf approved emails ko allow karo
-        const result = await queryOwn(
-          'SELECT * FROM dashboard_users WHERE email = $1 AND is_active = true',
-          [credentials.email]
-        )
-        const user = result.rows[0]
-        if (!user) return null
+        // Step 1: Password check
+        const validPassword =
+          credentials.password === process.env.OPS_DASHBOARD_PASSWORD;
+        
+        if (!validPassword) {
+          console.log("[Auth] Wrong password for:", credentials.email);
+          return null;
+        }
 
-        // Last login update karo
-        await queryOwn(
-          'UPDATE dashboard_users SET last_login = NOW() WHERE email = $1',
-          [credentials.email]
-        )
+        // Step 2: Email allowed list check
+        const user = ALLOWED_USERS.find(
+          (u) => u.email === credentials.email.toLowerCase().trim()
+        );
 
-        return { id: user.id, email: user.email, name: user.name, role: user.role }
+        if (!user) {
+          console.log("[Auth] Email not in allowed list:", credentials.email);
+          return null;
+        }
+
+        console.log("[Auth] Login success:", user.email);
+        return user;
       },
     }),
-
-    // Phase 2: Google SSO — GOOGLE_CLIENT_ID env mein aane ke baad active hoga
-    ...(process.env.GOOGLE_CLIENT_ID ? [
-      GoogleProvider({
-        clientId: process.env.GOOGLE_CLIENT_ID!,
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      })
-    ] : []),
   ],
 
   callbacks: {
-    async signIn({ user }) {
-      // Google SSO ke case mein bhi approved list check karo
-      if (!user.email) return false
-      const result = await queryOwn(
-        'SELECT id FROM dashboard_users WHERE email = $1 AND is_active = true',
-        [user.email]
-      )
-      return result.rows.length > 0
+    async jwt({ token, user }) {
+      if (user) {
+        token.id   = user.id;
+        token.role = (user as { id: string; role: string }).role;
+        token.name = user.name;
+      }
+      return token;
     },
 
     async session({ session, token }) {
       if (session.user) {
-        session.user.role = token.role as string
+        session.user.id   = token.id   as string;
+        session.user.role = token.role as string;
       }
-      return session
-    },
-
-    async jwt({ token, user }) {
-      if (user) token.role = (user as any).role
-      return token
+      return session;
     },
   },
 
-  pages: { signIn: '/login' },
-  session: { strategy: 'jwt' },
-})
+  pages: {
+    signIn: "/login",
+    error:  "/login",
+  },
 
-export { handler as GET, handler as POST }
+  session: {
+    strategy: "jwt",
+    maxAge:   8 * 60 * 60, // 8 hours
+  },
+
+  debug: process.env.NODE_ENV === "development",
+};
+
+const handler = NextAuth(authOptions);
+export { handler as GET, handler as POST };
