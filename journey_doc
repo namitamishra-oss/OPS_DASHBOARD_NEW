@@ -1,0 +1,576 @@
+# OPS DASHBOARD — Complete Journey & Technical Reference
+**Project:** Multi-page Ops Dashboard (Next.js + PostgreSQL + ClickHouse)
+**Status as of 28 May 2026:** Login ✅ | Dashboard Layout ✅ | Pages → In Progress
+
+---
+
+## TABLE OF CONTENTS
+1. Project Requirements & Architecture Decision
+2. Tech Stack — What & Why
+3. Package Reference — Every Package Explained
+4. Phase-by-Phase Journey (with Commands + Issues + Fixes)
+5. Current File Structure
+6. What's Next
+
+---
+
+## 1. PROJECT REQUIREMENTS & ARCHITECTURE DECISION
+
+### What needed to be built
+A multi-page internal ops dashboard with these pages:
+- Login, Overview, Users, Failures, Submission Log (Trace), Scrubbing, TPS, MIS
+
+### Data Sources
+| Database | What it stores | Access type |
+|---|---|---|
+| Production PostgreSQL | main_account, dlt_header, dlt_template tables | READ-ONLY (no write permission) |
+| ClickHouse | Logs, events, TPS data, failures (time-series) | READ via FortiClient VPN |
+| Own PostgreSQL (Docker) | dashboard_users, audit_logs — our own tables | READ + WRITE |
+
+### Why 3 databases?
+- **Prod Postgres** = company's existing data, we can only read it
+- **ClickHouse** = fast analytics DB, already has all ops logs — needs VPN to access
+- **Own Postgres** = we needed to store login users somewhere, can't write to prod, so created our own separate DB in Docker
+
+### Architecture (Final)
+```
+User Browser
+    ↓
+Next.js App (runs on server with VPN access)
+    ├── Auth Check (NextAuth JWT)
+    ├── READ → Prod Postgres (main_account, dlt_header, dlt_template)
+    ├── READ → ClickHouse via VPN IP:8123
+    └── READ+WRITE → Own Postgres Docker (dashboard_users, audit_logs)
+```
+
+### Key Design Decisions Made
+| Decision | What was chosen | Why |
+|---|---|---|
+| Framework | Next.js with App Router | Full-stack in one project, built-in API routes |
+| Auth | NextAuth with Credentials | No SSO yet; approved email list approach |
+| DB for auth | Own Docker Postgres | Prod DB is read-only |
+| VPN | Server-side only | Users don't need VPN; only the deployment server does |
+| Login method | Email + shared env password | Simple for internal tool, upgrade to bcrypt later |
+
+---
+
+## 2. TECH STACK — WHAT & WHY
+
+| Tool | What it is | Why used |
+|---|---|---|
+| **Next.js** | React framework with backend support | One codebase for frontend + API routes (backend) |
+| **TypeScript** | JavaScript with types | Catches errors before runtime; better IDE help |
+| **Tailwind CSS** | Utility-first CSS | Fast styling without writing separate CSS files |
+| **App Router** | Next.js routing system (new) | File-based routing; layouts shared automatically |
+| **PostgreSQL** | Relational database | Company's existing data is here |
+| **ClickHouse** | Columnar analytics DB | Super fast for logs/events (millions of rows) |
+| **Docker** | Container platform | Run own Postgres locally without installing it |
+| **NextAuth** | Authentication library for Next.js | Handles sessions, JWT, login flow out of the box |
+| **bcryptjs** | Password hashing library | Securely hash passwords (for future use) |
+
+---
+
+## 3. PACKAGE REFERENCE — EVERY PACKAGE EXPLAINED
+
+### Command that was run:
+```bash
+npm install pg @clickhouse/client next-auth bcryptjs
+npm install -D @types/pg @types/bcryptjs
+```
+
+### What each package does:
+
+#### `pg` — PostgreSQL client for Node.js
+- **What:** Lets Node.js (and Next.js) talk to PostgreSQL database
+- **Why installed:** Without this, we can't run any SQL queries on Postgres from our code
+- **How used:** `lib/db-prod.ts` and `lib/db-own.ts` — Pool connection, `client.query()` calls
+- **Key concept:** "Pool" = keeps multiple connections open so each request doesn't reconnect from scratch
+
+#### `@clickhouse/client` — ClickHouse official Node.js client
+- **What:** Lets Node.js connect to ClickHouse database
+- **Why installed:** ClickHouse has its own protocol (HTTP at port 8123), different from Postgres
+- **How used:** `lib/clickhouse.ts` — `createClient()`, `clickhouse.query()` calls
+- **Key concept:** Queries via HTTP to IP:8123; VPN must be active for this to work
+
+#### `next-auth` — Authentication for Next.js
+- **What:** Complete auth solution — handles login, sessions, JWT tokens, protected routes
+- **Why installed:** Writing auth from scratch is complex and insecure. NextAuth handles: session creation, JWT signing, cookie management, CSRF protection
+- **How used:** `app/api/auth/[...nextauth]/route.ts` — the `[...nextauth]` catches ALL auth API calls
+- **Key concept — JWT:** After login, user info is stored in an encrypted cookie (JWT token). No DB session needed. Token has 8-hour expiry.
+- **Key concept — Providers:** We used `CredentialsProvider` = email + password login. Could upgrade to `GoogleProvider` for SSO.
+
+#### `bcryptjs` — Password hashing
+- **What:** Converts plain password → unreadable hash. One-way — cannot reverse it.
+- **Why installed:** NEVER store plain passwords. `bcrypt("pass123")` → `$2b$10$abc...xyz` (60 char hash)
+- **Current usage:** Installed but not actively used yet (using env password for now)
+- **Future use:** When individual user passwords are needed: `bcrypt.hash(password, 10)` to store, `bcrypt.compare(input, hash)` to verify
+
+#### `@types/pg` and `@types/bcryptjs` (devDependencies with `-D`)
+- **What:** TypeScript type definitions for `pg` and `bcryptjs`
+- **Why:** TypeScript needs to "know" the shape of these libraries to give autocomplete and catch errors
+- **`-D` flag means:** Development-only dependency — not included in production build
+
+---
+
+## 4. PHASE-BY-PHASE JOURNEY
+
+---
+
+### PHASE 1: INITIAL SETUP
+**Date:** 25-26 May 2026 | **Status:** ✅ Complete
+
+#### Step 1.1 — Prerequisites Check
+```bash
+node --version    # Should be v18+
+git --version
+docker --version
+```
+**Why:** Next.js needs Node 18+. Docker needed for our own Postgres. Git for version control.
+
+#### Step 1.2 — Create Next.js Project
+```bash
+npx create-next-app@latest ops-dashboard
+```
+**Options selected during setup:**
+```
+TypeScript?          → Yes  (type safety)
+ESLint?              → Yes  (code quality checks)
+Tailwind CSS?        → Yes  (fast styling)
+App Router?          → Yes  (modern Next.js routing — required)
+Import alias?        → No   (use default @/ alias)
+```
+
+```bash
+cd ops-dashboard
+code .    # Open in VS Code
+```
+
+#### Step 1.3 — Folder Structure Created
+```
+ops-dashboard/
+├── app/
+│   ├── (auth)/login/page.tsx        ← login page
+│   ├── (dashboard)/
+│   │   ├── layout.tsx               ← sidebar + topbar (shared)
+│   │   └── dashboard/page.tsx       ← overview page
+│   ├── api/
+│   │   ├── auth/[...nextauth]/route.ts  ← auth endpoint
+│   │   └── health/route.ts          ← DB connection test
+│   └── layout.tsx                   ← root layout
+├── components/
+│   ├── Sidebar.tsx
+│   └── Topbar.tsx
+├── lib/
+│   ├── db-prod.ts                   ← prod postgres connection
+│   ├── db-own.ts                    ← own postgres connection
+│   ├── clickhouse.ts                ← clickhouse connection
+│   └── queries/users.ts             ← SQL query functions
+├── middleware.ts                    ← route protection (ROOT level!)
+├── docker-compose.yml
+└── .env.local                       ← secrets (never git push)
+```
+
+**Why route groups like `(auth)` and `(dashboard)`?**
+- Parentheses `()` in folder names = "route groups" in Next.js App Router
+- `(auth)` and `(dashboard)` do NOT appear in the URL
+- `/app/(auth)/login/page.tsx` → accessible at `/login` ✅
+- Allows different layouts for different sections (login has no sidebar; dashboard does)
+
+---
+
+### PHASE 2: DATABASE SETUP
+**Date:** 26-27 May 2026 | **Status:** ✅ Complete
+
+#### Step 2.1 — Docker Compose for Own Postgres
+**File: `docker-compose.yml`**
+```yaml
+services:
+  own-postgres:
+    image: postgres:15
+    container_name: ops_own_db
+    restart: always          # auto-start on system restart
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: ops_auth
+    ports:
+      - "5433:5432"          # host:container — 5433 to avoid conflict with prod
+    volumes:
+      - own_postgres_data:/var/lib/postgresql/data  # data persists
+
+volumes:
+  own_postgres_data:
+```
+
+**Why port 5433 and not 5432?**
+Prod Postgres runs on 5432. If we also used 5432 for our own DB, there'd be a port conflict. 5433 keeps them separate.
+
+**Why `restart: always`?**
+Without this, Docker container stops when computer restarts. `restart: always` makes it auto-start.
+
+#### Step 2.2 — Start Docker Container
+```bash
+docker-compose up -d
+# -d = detached mode (runs in background, doesn't block terminal)
+
+# Verify it's running:
+docker ps
+docker ps --format "table {{.Names}}\t{{.Ports}}"
+```
+
+Expected output:
+```
+NAMES         PORTS
+ops_own_db    0.0.0.0:5433->5432/tcp
+```
+
+#### Step 2.3 — Run Database Migration
+**File created: `lib/migrations/001_auth.sql`**
+
+Why "001"? Migration files are numbered so they run in order. Future tables = `002_settings.sql`, `003_xyz.sql`.
+
+```bash
+# Connect to container and create tables:
+docker exec -it ops_own_db psql -U admin -d ops_auth
+```
+
+SQL run inside psql:
+```sql
+CREATE TABLE IF NOT EXISTS dashboard_users (
+  id          SERIAL PRIMARY KEY,
+  email       TEXT UNIQUE NOT NULL,
+  name        TEXT,
+  role        TEXT DEFAULT 'viewer',
+  is_active   BOOLEAN DEFAULT true,
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  last_login  TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id          BIGSERIAL PRIMARY KEY,
+  user_email  TEXT NOT NULL,
+  action      TEXT NOT NULL,
+  resource    TEXT,
+  ip_address  TEXT,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+INSERT INTO dashboard_users (email, name, role)
+VALUES ('ops@goflipo.in', 'Ops Team', 'admin')
+ON CONFLICT DO NOTHING;
+
+SELECT * FROM dashboard_users;
+
+\q   -- exit psql
+```
+
+#### Step 2.4 — Environment Variables Setup
+**File: `.env.local`** (never commit this to Git!)
+```bash
+# Production Postgres (READ ONLY)
+PROD_DATABASE_URL=postgresql://username:password@host:5432/dbname
+
+# Own Postgres (READ + WRITE) — Docker local
+OWN_DATABASE_URL=postgresql://admin:password123@localhost:5433/ops_auth
+#                                                           ^^^^^ 5433 NOT 5432
+
+# ClickHouse (requires FortiClient VPN to be connected)
+CLICKHOUSE_HOST=http://YOUR_ACTUAL_IP:8123
+CLICKHOUSE_USER=your_username
+CLICKHOUSE_PASSWORD=your_password
+
+# NextAuth
+NEXTAUTH_SECRET=any_32_character_random_string_here
+NEXTAUTH_URL=http://localhost:3000
+
+# Dashboard shared password
+OPS_DASHBOARD_PASSWORD=your_secure_password
+```
+
+#### Step 2.5 — DB Connection Files Created
+
+**`lib/db-prod.ts`** — Read-only Prod Postgres
+```typescript
+import { Pool } from 'pg'
+const prodPool = new Pool({ connectionString: process.env.PROD_DATABASE_URL })
+export async function queryProd(text: string, params?: (string|number|boolean|null)[]) {
+  const client = await prodPool.connect()
+  try { return await client.query(text, params) }
+  finally { client.release() }
+}
+```
+
+**`lib/db-own.ts`** — Own Docker Postgres
+```typescript
+import { Pool } from 'pg'
+const ownPool = new Pool({ connectionString: process.env.OWN_DATABASE_URL })
+export async function queryOwn(text: string, params?: (string|number|boolean|null)[]) {
+  const client = await ownPool.connect()
+  try { return await client.query(text, params) }
+  finally { client.release() }
+}
+```
+
+**`lib/clickhouse.ts`** — ClickHouse via VPN
+```typescript
+import { createClient } from '@clickhouse/client'
+const clickhouse = createClient({
+  host: process.env.CLICKHOUSE_HOST!,
+  username: process.env.CLICKHOUSE_USER!,
+  password: process.env.CLICKHOUSE_PASSWORD!,
+})
+export default clickhouse
+```
+
+#### Step 2.6 — Health Check API
+**`app/api/health/route.ts`** — Test all 3 connections at once
+```bash
+# Test in browser (VPN must be on for ClickHouse):
+http://localhost:3000/api/health
+```
+Expected response:
+```json
+{
+  "prod_postgres": "connected",
+  "own_postgres": "connected",
+  "clickhouse": "connected (VPN active)"
+}
+```
+**All 3 connected ✅**
+
+---
+
+### PHASE 3: AUTH / LOGIN
+**Date:** 27-28 May 2026 | **Status:** ✅ Complete (after 6 issues fixed)
+
+#### Step 3.1 — Install Packages
+```bash
+npm install next-auth bcryptjs
+npm install -D @types/bcryptjs
+```
+
+#### Step 3.2 — NextAuth Route Created
+**File: `app/api/auth/[...nextauth]/route.ts`**
+
+Why `[...nextauth]`? The `...` is a "catch-all" segment. NextAuth needs to handle multiple routes:
+- `/api/auth/signin`
+- `/api/auth/callback/credentials`
+- `/api/auth/session`
+- `/api/auth/csrf`
+...and more. One file handles all of them.
+
+#### Step 3.3 — Login Page UI
+Built to match Lovable design reference:
+- Dark background with teal accent
+- "OPERATOR ID" and "PASSCODE" labels (not generic email/password)
+- Live animated green dot (system online indicator)
+- "AUTHORIZED PERSONNEL ONLY" footer
+
+#### Step 3.4 — Middleware for Route Protection
+**File: `middleware.ts`** (at project ROOT)
+```typescript
+export { default } from 'next-auth/middleware'
+export const config = {
+  matcher: [
+    '/dashboard/:path*', '/users/:path*', '/failures/:path*',
+    '/trace/:path*', '/scrubbing/:path*', '/tps/:path*', '/mis/:path*',
+  ]
+}
+```
+**What this does:** Any request to these paths is intercepted. If no valid session → redirect to `/login`.
+
+---
+
+### ISSUES ENCOUNTERED & HOW EACH WAS FIXED
+
+---
+
+#### ❌ ISSUE 1: "The default export is not a React Component in /login/page"
+**When:** First time opening `/login`
+**Root Cause:** `'use client'` directive was not on the very first line, OR had invisible characters before it (BOM — Byte Order Mark from copy-paste)
+**Fix:** Created a completely clean file from scratch with `'use client'` as literal first line, no comments before it
+**Learning:** In Next.js App Router, any file that uses browser APIs (useState, signIn, useRouter) MUST have `'use client'` as the first line — no exceptions.
+
+---
+
+#### ❌ ISSUE 2: "relation dashboard_users does not exist"
+**When:** Login attempt — terminal showed `42P01` error
+**Root Cause:** Docker container was running but the SQL migration had never been run — table was never created
+**Fix:**
+```bash
+docker exec -it ops_own_db psql -U admin -d ops_auth
+# Then ran CREATE TABLE SQL inside psql
+```
+**Learning:** Docker running ≠ tables exist. Migration must be run separately after starting container.
+
+---
+
+#### ❌ ISSUE 3: ECONNREFUSED 127.0.0.1:5433
+**When:** Even after table was created, DB connection refused
+**Root Cause:** `.env.local` had `OWN_DATABASE_URL` pointing to port `5432` but docker-compose mapped own DB to port `5433`
+```bash
+# Wrong:  OWN_DATABASE_URL=postgresql://admin:pass@localhost:5432/ops_auth
+# Correct: OWN_DATABASE_URL=postgresql://admin:pass@localhost:5433/ops_auth
+```
+**Fix:** Changed port from 5432 → 5433 in `.env.local`, restarted dev server
+**Learning:** Port in connection string MUST match the host port in docker-compose.yml ports mapping (`"5433:5432"` means host 5433 → container 5432)
+
+---
+
+#### ❌ ISSUE 4: .env.local was empty (0 bytes)
+**When:** `OPS_DASHBOARD_PASSWORD` showing as `undefined` in debug logs
+**Root Cause:** `.env.local` file was accidentally created empty. Actual values were in `.env.local.bak`
+**Fix:**
+```powershell
+Copy-Item .env.local.bak .env.local
+```
+Then verified content and fixed port in same step
+**Learning:** Always verify `.env.local` has actual content. After any `.env.local` change, server MUST be restarted (`Ctrl+C` → `npm run dev`)
+
+---
+
+#### ❌ ISSUE 5: middleware.ts in wrong location
+**When:** Protected routes not redirecting to login
+**Root Cause:** `middleware.ts` was inside `app/` folder (`app/middleware.ts`) instead of project root
+**Fix:**
+```powershell
+Move-Item app\middleware.ts middleware.ts
+```
+**Learning:** Next.js middleware ONLY works from project root (same level as `package.json`). Placing it inside `app/` does nothing.
+
+---
+
+#### ❌ ISSUE 6: "The default export is not a React Component in /dashboard/layout"
+**When:** After login success, redirect to `/dashboard` threw 500
+**Root Cause:** `app/(dashboard)/layout.tsx` existed but had either no default export or incorrect component syntax
+**Fix:** Replaced with proper layout:
+```typescript
+'use client'
+import { ReactNode } from 'react'
+export default function DashboardLayout({ children }: { children: ReactNode }) {
+  return (
+    <div className="min-h-screen bg-gray-900">
+      <Sidebar />
+      <Topbar />
+      <main>{children}</main>
+    </div>
+  )
+}
+```
+**Learning:** Every `layout.tsx` in Next.js App Router MUST have a default exported React component that accepts `children` prop.
+
+---
+
+### PHASE 4: DASHBOARD LAYOUT
+**Date:** 28 May 2026 | **Status:** ✅ Complete
+
+#### Files Created:
+**`app/(dashboard)/layout.tsx`** — Shared wrapper for all 7 pages
+- Why: One layout file → sidebar + topbar appear on ALL dashboard pages automatically
+- Uses `SessionProvider` to make `useSession()` work across pages
+
+**`components/Sidebar.tsx`**
+- `usePathname()` detects current URL → highlights active nav link
+- `signOut()` from NextAuth handles logout
+- Icons: Using emoji/SVG inline (can replace with lucide-react later)
+
+**`components/Topbar.tsx`**
+- Live clock: `useEffect` + `setInterval` updates every 1 second
+- Shows logged-in user name from `useSession()`
+- Search input (currently local state — to be connected later)
+
+**`app/(dashboard)/dashboard/page.tsx`**
+- Placeholder page with 3 KPI cards
+- Real ClickHouse data to be connected next
+
+---
+
+## 5. CURRENT FILE STRUCTURE (as of 28 May)
+
+```
+ops-dashboard/
+├── app/
+│   ├── (auth)/
+│   │   └── login/
+│   │       └── page.tsx              ✅ Login UI + NextAuth signIn()
+│   ├── (dashboard)/
+│   │   ├── layout.tsx                ✅ Sidebar + Topbar wrapper
+│   │   └── dashboard/
+│   │       └── page.tsx              ✅ Placeholder KPI cards
+│   ├── api/
+│   │   ├── auth/
+│   │   │   └── [...nextauth]/
+│   │   │       └── route.ts          ✅ NextAuth handler
+│   │   └── health/
+│   │       └── route.ts              ✅ DB connection test
+│   └── layout.tsx                    ✅ Root layout (SessionProvider here)
+├── components/
+│   ├── Sidebar.tsx                   ✅ Nav links, active state, logout
+│   └── Topbar.tsx                    ✅ Live clock, user info, search
+├── lib/
+│   ├── db-prod.ts                    ✅ Read-only prod Postgres
+│   ├── db-own.ts                     ✅ Own Docker Postgres (auth)
+│   ├── clickhouse.ts                 ✅ ClickHouse via VPN
+│   └── queries/
+│       └── users.ts                  ✅ SQL queries for main_account
+├── lib/migrations/
+│   └── 001_auth.sql                  ✅ dashboard_users + audit_logs
+├── middleware.ts                     ✅ Route protection (ROOT level)
+├── docker-compose.yml                ✅ Own Postgres container
+├── .env.local                        ✅ All secrets (never git push)
+└── package.json
+```
+
+---
+
+## 6. WHAT'S NEXT — UPCOMING PHASES
+
+| Phase | What to build | DB Source |
+|---|---|---|
+| Overview Page | KPI summary cards, charts | ClickHouse |
+| Users Page | Paginated table, type badges, search | Prod Postgres (main_account) |
+| Failures Page | Error log with status codes | ClickHouse |
+| Submission Log | Time-series trace viewer | ClickHouse |
+| Scrubbing Page | Queue + action buttons | ClickHouse + Own Postgres |
+| TPS Page | Live chart (auto-refresh 30s) | ClickHouse + SWR |
+| MIS Page | Summary table + CSV export | ClickHouse |
+| Shared Components | DateRangePicker, Pagination, StatusBadge | — |
+| Deployment | Internal server with VPN access | IT team coordination |
+
+---
+
+## QUICK REFERENCE — COMMANDS CHEATSHEET
+
+```bash
+# Start dev server
+npm run dev
+
+# Start Docker DB
+docker-compose up -d
+
+# Stop Docker DB
+docker-compose down
+
+# Check containers running
+docker ps
+docker ps --format "table {{.Names}}\t{{.Ports}}"
+
+# Connect to own DB
+docker exec -it ops_own_db psql -U admin -d ops_auth
+
+# Check all 3 DB connections
+# Browser: http://localhost:3000/api/health
+
+# View all users in auth DB
+docker exec -it ops_own_db psql -U admin -d ops_auth -c "SELECT * FROM dashboard_users;"
+
+# Add new allowed user
+docker exec -it ops_own_db psql -U admin -d ops_auth -c "
+INSERT INTO dashboard_users (email, name, role)
+VALUES ('newuser@goflipo.in', 'New User', 'viewer')
+ON CONFLICT DO NOTHING;"
+```
+
+---
+
+*Document last updated: 28 May 2026*

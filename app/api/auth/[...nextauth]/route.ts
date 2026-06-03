@@ -10,8 +10,8 @@ import CredentialsProvider from "next-auth/providers/credentials";
 // Allowed operators — jinhe dashboard access hai
 // Baad mein yeh DB se aayega
 const ALLOWED_USERS = [
-  { id: "1", email: "ops@goflipo.in",   name: "Ops Team",  role: "admin" },
-  { id: "2", email: "admin@goflipo.in", name: "Admin",     role: "admin" },
+  { id: "1", email: "ops@goflipo.in", name: "Ops Team", role: "admin" },
+  { id: "2", email: "admin@goflipo.in", name: "Admin", role: "admin" },
   // Aur emails yahan add karo as needed
 ];
 
@@ -20,17 +20,23 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: "Credentials",
       credentials: {
-        email:    { label: "Operator ID", type: "email"    },
-        password: { label: "Passcode",    type: "password" },
+        email: { label: "Operator ID", type: "email" },
+        password: { label: "Passcode", type: "password" },
       },
 
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
+        console.log("=== AUTH ATTEMPT ===");
+        console.log("Email:", credentials?.email);
+        console.log("Password provided:", !!credentials?.password);
+        console.log(
+          "Env password exists:",
+          !!process.env.OPS_DASHBOARD_PASSWORD,
+        );
 
         // Step 1: Password check
         const validPassword =
           credentials.password === process.env.OPS_DASHBOARD_PASSWORD;
-        
+
         if (!validPassword) {
           console.log("[Auth] Wrong password for:", credentials.email);
           return null;
@@ -38,7 +44,7 @@ export const authOptions: NextAuthOptions = {
 
         // Step 2: Email allowed list check
         const user = ALLOWED_USERS.find(
-          (u) => u.email === credentials.email.toLowerCase().trim()
+          (u) => u.email === credentials.email.toLowerCase().trim(),
         );
 
         if (!user) {
@@ -55,7 +61,7 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id   = user.id;
+        token.id = user.id;
         token.role = (user as { id: string; role: string }).role;
         token.name = user.name;
       }
@@ -64,7 +70,7 @@ export const authOptions: NextAuthOptions = {
 
     async session({ session, token }) {
       if (session.user) {
-        session.user.id   = token.id   as string;
+        session.user.id = token.id as string;
         session.user.role = token.role as string;
       }
       return session;
@@ -73,12 +79,12 @@ export const authOptions: NextAuthOptions = {
 
   pages: {
     signIn: "/login",
-    error:  "/login",
+    error: "/login",
   },
 
   session: {
     strategy: "jwt",
-    maxAge:   8 * 60 * 60, // 8 hours
+    maxAge: 8 * 60 * 60, // 8 hours
   },
 
   debug: process.env.NODE_ENV === "development",

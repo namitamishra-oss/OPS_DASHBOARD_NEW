@@ -1,16 +1,154 @@
-/**
+/*
  * app/globals.css
  *
- * Colors from designs:
- *   Teal (primary):   #1a9e8c
- *   Orange (accent):  #e07b18
- *   Red (accent):     #d94f3d
- *   Purple (accent):  #7c3aed  (used in scrubbing/failures badges)
- *   Background:       #f5f4f0  (warm off-white)
- *   Text primary:     #111111
- *   Text secondary:   #6b7280
- *   Border:           #e5e7eb
+ * TAILWIND V4 STYLE — @import se kaam hota hai, koi tailwind.config.ts nahi chahiye
+ *
+ * Yahan 3 cheezein hain:
+ * 1. Tailwind import — saari utility classes available ho jaati hain (bg-white, flex, etc.)
+ * 2. CSS variables — light aur dark theme ke colors ek jagah define
+ * 3. Base styles — body, scrollbar, etc.
+ *
+ * Theme kaise kaam karta hai:
+ *   [data-theme="dark"] attribute jab <html> pe lagta hai →
+ *   dark ke CSS variables activate ho jaate hain →
+ *   poori app automatically dark ho jaati hai
  */
+
+@import "tailwindcss";
+
+/* ── THEME VARIABLES ── */
+/*
+ * :root = light theme (default)
+ * Lovable ke exact HSL values use kiye hain
+ * HSL format: hue saturation% lightness%
+ */
+:root {
+  /* Page background — warm off-white jaise Lovable login page */
+  --background: 40 30% 97%;
+  --foreground: 222 28% 12%;
+
+  /* Cards — pure white */
+  --card: 0 0% 100%;
+  --card-foreground: 222 28% 12%;
+
+  /* Primary = teal (#1a9e8c) */
+  --primary: 174 55% 38%;
+  --primary-foreground: 0 0% 100%;
+
+  /* Muted — light grey backgrounds */
+  --muted: 40 16% 91%;
+  --muted-foreground: 222 12% 42%;
+
+  /* Accent */
+  --accent: 40 20% 90%;
+  --accent-foreground: 222 28% 12%;
+
+  /* Status colors */
+  --destructive: 0 72% 50%;      /* red   */
+  --success: 152 62% 38%;        /* green */
+  --warning: 32 92% 48%;         /* amber */
+  --info: 200 80% 45%;           /* blue  */
+
+  /* Borders & inputs */
+  --border: 40 14% 86%;
+  --input: 40 14% 86%;
+  --ring: 174 55% 38%;
+
+  /* Border radius */
+  --radius: 0.5rem;
+
+  /* Tone accents — used for badges */
+  --tone-coral: 6 78% 54%;
+  --tone-amber: 32 92% 46%;
+  --tone-purple: 268 60% 52%;
+  --tone-teal: 174 60% 38%;
+
+  /* Nav bar — dark even in light mode (matches Lovable/your design) */
+  --nav-bg: 222 28% 8%;
+  --nav-border: 222 20% 14%;
+  --nav-text: 215 20% 75%;
+  --nav-text-muted: 215 14% 45%;
+  --nav-active: 174 60% 55%;
+}
+
+/*
+ * [data-theme="dark"] — dark theme variables
+ * Soft navy/slate — NOT pure black
+ * Inspired by VS Code dark + Lovable dark tokens
+ */
+[data-theme="dark"] {
+  /* Page — dark navy, NOT #000 */
+  --background: 222 28% 7%;
+  --foreground: 210 20% 96%;
+
+  /* Cards — slightly lighter than page so they're visible */
+  --card: 222 25% 10%;
+  --card-foreground: 210 20% 96%;
+
+  /* Primary — slightly brighter teal in dark */
+  --primary: 174 60% 55%;
+  --primary-foreground: 222 28% 7%;
+
+  /* Muted */
+  --muted: 222 20% 13%;
+  --muted-foreground: 215 14% 60%;
+
+  /* Accent */
+  --accent: 222 20% 16%;
+  --accent-foreground: 210 20% 96%;
+
+  /* Status colors — brighter in dark bg */
+  --destructive: 0 72% 58%;
+  --success: 152 62% 50%;
+  --warning: 38 92% 58%;
+  --info: 200 90% 60%;
+
+  /* Borders */
+  --border: 222 18% 18%;
+  --input: 222 18% 18%;
+  --ring: 174 60% 55%;
+
+  /* Tone accents */
+  --tone-coral: 6 86% 65%;
+  --tone-amber: 36 95% 60%;
+  --tone-purple: 268 75% 68%;
+  --tone-teal: 174 65% 55%;
+
+  /* Nav — even darker than page */
+  --nav-bg: 222 30% 5%;
+  --nav-border: 222 20% 12%;
+  --nav-text: 215 20% 70%;
+  --nav-text-muted: 215 14% 40%;
+  --nav-active: 174 60% 55%;
+}
+
+/* ── BASE STYLES ── */
+/*
+ * @theme inline — Tailwind v4 mein CSS variables ko
+ * Tailwind classes se connect karta hai
+ * Matlab: bg-background = background: hsl(var(--background))
+ */
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-success: hsl(var(--success));
+  --color-warning: hsl(var(--warning));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-nav-bg: hsl(var(--nav-bg));
+  --color-nav-active: hsl(var(--nav-active));
+  --radius-default: var(--radius);
+  --font-sans: 'DM Sans', system-ui, sans-serif;
+  --font-mono: 'DM Mono', ui-monospace, monospace;
+}
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -18,72 +156,42 @@
   padding: 0;
 }
 
-:root {
-  /* Brand colors — exact values from design */
-  --color-teal:         #1a9e8c;
-  --color-teal-dark:    #158a7a;
-  --color-teal-light:   #e8f5f3;
-  --color-orange:       #e07b18;
-  --color-red:          #d94f3d;
-  --color-purple:       #7c3aed;
-  --color-amber:        #d97706;
-
-  /* Neutral */
-  --color-bg:           #f5f4f0;
-  --color-surface:      #ffffff;
-  --color-border:       #e5e7eb;
-  --color-border-light: #f3f4f6;
-
-  /* Text */
-  --color-text-primary:   #111111;
-  --color-text-secondary: #6b7280;
-  --color-text-muted:     #9ca3af;
-  --color-text-teal:      #5b9e98;
-
-  /* Status colors */
-  --color-success:        #16a34a;
-  --color-success-bg:     #f0fdf4;
-  --color-error:          #dc2626;
-  --color-error-bg:       #fef2f2;
-  --color-warning:        #d97706;
-  --color-warning-bg:     #fffbeb;
-
-  /* Font */
-  --font-sans: var(--font-dm-sans), 'DM Sans', system-ui, sans-serif;
-
-  /* Spacing */
-  --sidebar-width: 200px;
-  --topbar-height: 44px;
-}
-
 html, body {
   height: 100%;
   font-family: var(--font-sans);
-  color: var(--color-text-primary);
-  background: var(--color-bg);
-  font-size: 14px;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-size: 13px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
-/* Scrollbar styling — subtle, matches design aesthetic */
-::-webkit-scrollbar { width: 6px; height: 6px; }
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; }
+input, select, textarea { font-family: inherit; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: #d1d5db;
-  border-radius: 3px;
+  background: hsl(var(--border));
+  border-radius: 99px;
 }
-::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground));
+}
 
-/* Focus visible — accessibility */
+/* Focus */
 :focus-visible {
-  outline: 2px solid var(--color-teal);
+  outline: 2px solid hsl(var(--ring));
   outline-offset: 2px;
 }
-
-/* Remove focus ring for mouse users */
 :focus:not(:focus-visible) { outline: none; }
 
-/* Links */
-a { color: inherit; text-decoration: none; }
+/* Live dot pulse animation */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+.pulse { animation: pulse-dot 2s ease-in-out infinite; }

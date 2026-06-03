@@ -1,19 +1,27 @@
 'use client'
 
-/**
- * components/Providers.tsx
+/*
+ * components/Providers.tsx — EXISTING FILE, REPLACE KARO
+ *
+ * Kya karta hai?
+ * → SessionProvider (NextAuth) + ThemeProvider dono yahan wrap hain
+ * → app/layout.tsx mein sirf <Providers> lagana hoga
  *
  * Kyun alag component?
- * → SessionProvider ek client component hai (browser mein chalta hai)
- * → Root layout.tsx server component hona chahiye (Next.js requirement)
- * → Solution: SessionProvider ko alag 'use client' component mein wrap karo
- *   aur layout mein use karo
- *
- * Yeh pattern Next.js App Router ka standard pattern hai.
+ * → app/layout.tsx server component hai
+ * → SessionProvider aur ThemeProvider dono 'use client' chahiye
+ * → Solution: inhe ek alag client component mein wrap karo
  */
 
 import { SessionProvider } from 'next-auth/react'
+import { ThemeProvider } from '@/lib/theme-context'
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  return <SessionProvider>{children}</SessionProvider>
+  return (
+    <SessionProvider>
+      <ThemeProvider>
+        {children}
+      </ThemeProvider>
+    </SessionProvider>
+  )
 }
