@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState } from 'react'
+import { useDashboardControls } from '@/components/Topbar'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const num = (v: any) => (v === undefined || v === null || v === '') ? 0 : Number(v)
-
 function fmt(v: any): string {
   const x = num(v)
   if (x === 0) return '0'
@@ -12,23 +12,74 @@ function fmt(v: any): string {
   if (x >= 1_000)     return (x / 1_000).toFixed(1) + 'K'
   return x.toLocaleString('en-IN')
 }
-function pct(v: any, decimals = 1): string {
-  const x = num(v); return x.toFixed(decimals) + '%'
-}
+function pct(v: any, dec = 1): string { return num(v).toFixed(dec) + '%' }
 function ts(iso: string) {
   if (!iso) return '—'
-  try { return new Date(iso).toLocaleTimeString('en-IN', { hour12: false }).slice(0,8) }
-  catch { return iso.slice(11,19) }
+  try { return new Date(iso).toLocaleTimeString('en-IN', { hour12: false }).slice(0, 8) }
+  catch { return iso.slice(11, 19) }
 }
 
-// ── Sparkline ─────────────────────────────────────────────────────────────────
-function Sparkline({ data, color, h = 40 }: { data: number[]; color: string; h?: number }) {
-  const w = 140
-  if (!data || data.length < 2) return (
-    <div style={{ width: w, height: h, display: 'flex', alignItems: 'center', opacity: 0.3 }}>
-      <div style={{ width: '100%', height: 1, background: color }} />
+// ── Design tokens ─────────────────────────────────────────────────────────────
+type Tone = 'teal' | 'purple' | 'coral' | 'amber'
+const TXT:  Record<Tone, string> = { teal: '#0d9488', purple: '#7c3aed', coral: '#ef4444', amber: '#d97706' }
+const BG:   Record<Tone, string> = { teal: '#f0fdfa', purple: '#faf5ff', coral: '#fef2f2', amber: '#fff7ed' }
+const BDR:  Record<Tone, string> = { teal: '#99f6e4', purple: '#d8b4fe', coral: '#fca5a5', amber: '#fed7aa' }
+
+// ── Primitives ────────────────────────────────────────────────────────────────
+function Pill({ children, tone }: { children: React.ReactNode; tone: Tone | 'success' | 'warning' | 'danger' | 'info' }) {
+  const map: Record<string, [string, string]> = {
+    teal: [BG.teal, TXT.teal], purple: [BG.purple, TXT.purple],
+    coral: [BG.coral, TXT.coral], amber: [BG.amber, TXT.amber],
+    success: ['#dcfce7', '#166534'], warning: ['#fff7ed', '#92400e'],
+    danger: ['#fee2e2', '#991b1b'], info: ['#eff6ff', '#1e40af'],
+  }
+  const [bg, text] = map[tone] ?? [BG.teal, TXT.teal]
+  return (
+    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, background: bg, color: text, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap', display: 'inline-block' }}>
+      {children}
+    </span>
+  )
+}
+
+function Bar({ val, tone, height = 5 }: { val: number; tone: Tone; height?: number }) {
+  return (
+    <div style={{ height, background: '#f3f4f6', borderRadius: height / 2, overflow: 'hidden', flex: 1, minWidth: 40 }}>
+      <div style={{ width: `${Math.min(val, 100)}%`, height: '100%', background: TXT[tone], borderRadius: height / 2, transition: 'width 0.6s ease' }} />
     </div>
   )
+}
+
+function Panel({ children, tone, eyebrow, title, actions, style }: {
+  children: React.ReactNode; tone: Tone; eyebrow?: string; title?: string
+  actions?: React.ReactNode; style?: React.CSSProperties
+}) {
+  return (
+    <div style={{ background: '#fff', borderRadius: 12, border: `1px solid #e5e7eb`, borderTop: `3px solid ${TXT[tone]}`, overflow: 'hidden', ...style }}>
+      {(eyebrow || title || actions) && (
+        <div style={{ padding: '14px 18px 10px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6' }}>
+          <div>
+            {eyebrow && <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', color: TXT[tone], marginBottom: 2 }}>{eyebrow}</div>}
+            {title   && <div style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>{title}</div>}
+          </div>
+          {actions && <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>{actions}</div>}
+        </div>
+      )}
+      <div style={{ padding: '14px 18px' }}>{children}</div>
+    </div>
+  )
+}
+
+function SectionLabel({ tone = 'teal', children }: { tone?: Tone; children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '18px 0 10px' }}>
+      <div style={{ height: 1, width: 24, background: TXT[tone] }} />
+      <span style={{ fontSize: 10.5, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: '#6b7280' }}>{children}</span>
+    </div>
+  )
+}
+
+function Sparkline({ data, tone, w = 80, h = 28 }: { data: number[]; tone: Tone; w?: number; h?: number }) {
+  if (!data || data.length < 2) return <div style={{ width: w, height: h }} />
   const max = Math.max(...data, 1)
   const pts = data.map((v, i) => {
     const x = (i / (data.length - 1)) * w
@@ -36,96 +87,194 @@ function Sparkline({ data, color, h = 40 }: { data: number[]; color: string; h?:
     return `${x.toFixed(1)},${y.toFixed(1)}`
   }).join(' ')
   return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ overflow: 'visible', flexShrink: 0 }}>
-      <defs>
-        <linearGradient id={`sp${color.replace('#','')}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.2" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <polygon points={`0,${h} ${pts} ${w},${h}`} fill={`url(#sp${color.replace('#','')})`} />
-      <polyline points={pts} fill="none" stroke={color} strokeWidth="2"
-        strokeLinejoin="round" strokeLinecap="round" />
+    <svg width={w} height={h} style={{ flexShrink: 0 }}>
+      <polyline points={pts} fill="none" stroke={TXT[tone]} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
     </svg>
   )
 }
 
-// ── Bar chart (hourly submissions) ────────────────────────────────────────────
-function HourlyChart({ data, color }: { data: any[]; color: string }) {
-  if (!data.length) return <div style={{ height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af', fontSize: 11 }}>No data</div>
-  const max = Math.max(...data.map(d => num(d.failed) + num(d.submitted) + num(d.scrubbed)), 1)
+function StatusChip({ icon, label, value, sub, tone, live }: {
+  icon?: string; label: string; value: React.ReactNode; sub?: string; tone: Tone; live?: boolean
+}) {
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 72, padding: '0 4px' }}>
-      {data.map((d, i) => {
-        const total = num(d.failed) + num(d.submitted) + num(d.scrubbed)
-        const barH = Math.max((total / max) * 68, 2)
-        const hour = d.hour?.slice(11,13) || String(i).padStart(2,'0')
-        return (
-          <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-            <div style={{ width: '100%', height: barH, background: color, borderRadius: '2px 2px 0 0', opacity: 0.8, minHeight: 2 }} title={`${hour}:00 — ${total}`} />
-            {i % 4 === 0 && <span style={{ fontSize: 8, color: '#9ca3af' }}>{hour}</span>}
+    <div style={{ position: 'relative', borderRadius: 10, background: BG[tone], border: `1px solid ${BDR[tone]}`, padding: '10px 14px', overflow: 'hidden' }}>
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: TXT[tone] }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: TXT[tone], marginBottom: 4 }}>
+        {icon && <span style={{ fontSize: 12 }}>{icon}</span>}
+        <span style={{ fontSize: 9.5, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.18em' }}>{label}</span>
+        {live && <span style={{ marginLeft: 'auto', width: 6, height: 6, borderRadius: '50%', background: '#16a34a', flexShrink: 0 }} />}
+      </div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: '#111827', lineHeight: 1.2 }}>{value}</div>
+      {sub && <div style={{ fontSize: 10, fontFamily: 'monospace', color: '#6b7280', marginTop: 2 }}>{sub}</div>}
+    </div>
+  )
+}
+
+function LineChart({ data, tone }: { data: any[]; tone: Tone }) {
+  if (!data || data.length < 2) return (
+    <div style={{ height: 128, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af', fontSize: 12 }}>No data</div>
+  )
+  const W = 780, H = 110, PAD = { top: 8, right: 8, bottom: 20, left: 36 }
+  const iW = W - PAD.left - PAD.right
+  const iH = H - PAD.top - PAD.bottom
+
+  const totals      = data.map(d => num(d.submitted) + num(d.failed) + num(d.scrubbed))
+  const failedVals  = data.map(d => num(d.failed))
+  const maxVal      = Math.max(...totals, 1)
+  const peakIdx     = totals.indexOf(Math.max(...totals))
+
+  const toX = (i: number) => PAD.left + (i / (data.length - 1)) * iW
+  const toY = (v: number) => PAD.top + (1 - v / maxVal) * iH
+
+  const totalPts  = data.map((_, i) => `${toX(i).toFixed(1)},${toY(totals[i]).toFixed(1)}`).join(' ')
+  const failedPts = data.map((_, i) => `${toX(i).toFixed(1)},${toY(failedVals[i]).toFixed(1)}`).join(' ')
+
+  // Area fill path for total
+  const areaPath = `M ${toX(0)},${toY(totals[0])} ` +
+    data.slice(1).map((_, i) => `L ${toX(i+1).toFixed(1)},${toY(totals[i+1]).toFixed(1)}`).join(' ') +
+    ` L ${toX(data.length-1)},${PAD.top + iH} L ${toX(0)},${PAD.top + iH} Z`
+
+  // Y axis ticks
+  const yTicks = [0, 0.25, 0.5, 0.75, 1].map(f => ({ v: Math.round(maxVal * f), y: toY(maxVal * f) }))
+
+  // X axis labels (show ~8 evenly spaced)
+  const xStep = Math.ceil(data.length / 8)
+  const xLabels = data.map((d, i) => ({ i, label: d.hour?.slice(11, 13) || String(i), x: toX(i) })).filter((_, i) => i % xStep === 0)
+
+  const gradId = `grad-${tone}`
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 128, overflow: 'visible' }}>
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={TXT[tone]} stopOpacity="0.18" />
+          <stop offset="100%" stopColor={TXT[tone]} stopOpacity="0.01" />
+        </linearGradient>
+      </defs>
+
+      {/* Grid lines */}
+      {yTicks.map(t => (
+        <g key={t.v}>
+          <line x1={PAD.left} y1={t.y} x2={PAD.left + iW} y2={t.y} stroke="#f3f4f6" strokeWidth="1" />
+          <text x={PAD.left - 4} y={t.y + 3.5} textAnchor="end" fontSize="8" fontFamily="monospace" fill="#9ca3af">
+            {t.v >= 1000 ? (t.v/1000).toFixed(0)+'k' : t.v}
+          </text>
+        </g>
+      ))}
+
+      {/* Area fill */}
+      <path d={areaPath} fill={`url(#${gradId})`} />
+
+      {/* Failed line (coral, dashed) */}
+      <polyline points={failedPts} fill="none" stroke={TXT.coral} strokeWidth="1.5" strokeDasharray="4 3" strokeLinejoin="round" strokeLinecap="round" opacity="0.7" />
+
+      {/* Total line */}
+      <polyline points={totalPts} fill="none" stroke={TXT[tone]} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+
+      {/* Peak dot */}
+      <circle cx={toX(peakIdx)} cy={toY(totals[peakIdx])} r="4" fill={TXT[tone]} />
+      <circle cx={toX(peakIdx)} cy={toY(totals[peakIdx])} r="7" fill={TXT[tone]} fillOpacity="0.15" />
+
+      {/* X axis labels */}
+      {xLabels.map(l => (
+        <text key={l.i} x={l.x} y={H - 2} textAnchor="middle" fontSize="8" fontFamily="monospace" fill="#9ca3af">{l.label}</text>
+      ))}
+
+      {/* Legend */}
+      <g transform={`translate(${PAD.left + iW - 120}, ${PAD.top})`}>
+        <line x1="0" y1="5" x2="16" y2="5" stroke={TXT[tone]} strokeWidth="2" />
+        <text x="20" y="8" fontSize="8" fontFamily="monospace" fill="#6b7280">Total</text>
+        <line x1="54" y1="5" x2="70" y2="5" stroke={TXT.coral} strokeWidth="1.5" strokeDasharray="4 3" />
+        <text x="74" y="8" fontSize="8" fontFamily="monospace" fill="#6b7280">Failed</text>
+      </g>
+    </svg>
+  )
+}
+
+type DrillKey = 'submitted' | 'scrubbed' | 'failed'
+
+function PipelineCard({ eyebrow, title, sub, tone, arrow, active, onClick }: {
+  eyebrow: string; title: string; sub: string
+  tone: Tone; arrow?: boolean; active?: boolean; onClick?: () => void
+}) {
+  return (
+    <div style={{ position: 'relative' }}>
+      {arrow && (
+        <div style={{ display: 'none', position: 'absolute', left: -12, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af', fontSize: 20, zIndex: 10 }}>›</div>
+      )}
+      <button type="button" onClick={onClick} style={{
+        display: 'block', width: '100%', textAlign: 'left', cursor: 'pointer',
+        background: active ? BG[tone] : '#fff',
+        border: `1px solid ${active ? TXT[tone] : '#e5e7eb'}`,
+        borderTop: `3px solid ${TXT[tone]}`,
+        borderRadius: 12, padding: '16px 20px',
+        transition: 'all 0.15s ease', outline: 'none',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: '#6b7280', marginBottom: 8 }}>
+          {eyebrow}
+          <span style={{ fontSize: 12, transform: active ? 'rotate(180deg)' : 'none', display: 'inline-block', transition: 'transform 0.2s', color: active ? TXT[tone] : '#9ca3af' }}>⌄</span>
+        </div>
+        <div style={{ fontSize: 40, fontWeight: 700, color: TXT[tone], lineHeight: 1, marginBottom: 10 }}>{title}</div>
+        <div style={{ fontSize: 12, color: '#6b7280', fontFamily: 'monospace' }}>{sub}</div>
+      </button>
+    </div>
+  )
+}
+
+function DrillShell({ tone, eyebrow, title, total, rows, onClose }: {
+  tone: Tone; eyebrow: string; title: string; total: number; onClose: () => void
+  rows: { label: string; sub: string; count: number; pct: number; tone: Tone }[]
+}) {
+  return (
+    <Panel tone={tone} eyebrow={eyebrow} title={title}
+      actions={
+        <>
+          <span style={{ fontSize: 11, fontFamily: 'monospace', color: '#6b7280' }}>total · {fmt(total)}</span>
+          <button onClick={onClose} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, cursor: 'pointer', border: '1px solid #e5e7eb', background: '#f9fafb', color: '#6b7280', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+            Close ✕
+          </button>
+        </>
+      }
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+        {rows.map(r => (
+          <div key={r.label} style={{ display: 'grid', gridTemplateColumns: '1fr 140px 52px', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid #f3f4f6' }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{r.label}</div>
+              <div style={{ fontSize: 11, color: '#6b7280', fontFamily: 'monospace' }}>{r.sub}</div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Bar val={r.pct} tone={r.tone} height={5} />
+              <span style={{ fontSize: 11.5, fontFamily: 'monospace', color: '#6b7280', width: 44, textAlign: 'right', flexShrink: 0 }}>{fmt(r.count)}</span>
+            </div>
+            <Pill tone={r.tone}>{r.pct}%</Pill>
           </div>
-        )
-      })}
-    </div>
-  )
-}
-
-// ── Stat badge ────────────────────────────────────────────────────────────────
-function StatBadge({ ok }: { ok: boolean }) {
-  return (
-    <span style={{
-      fontSize: 10, fontWeight: 700, padding: '1px 7px', borderRadius: 4,
-      background: ok ? '#dcfce7' : '#fee2e2', color: ok ? '#166534' : '#991b1b'
-    }}>{ok ? 'OK' : 'FAIL'}</span>
-  )
-}
-
-// ── DLR code badge ────────────────────────────────────────────────────────────
-function CodeBadge({ code, ok }: { code: number; ok: boolean }) {
-  return (
-    <span style={{
-      fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 4,
-      background: ok ? '#dcfce7' : '#fee2e2', color: ok ? '#166534' : '#991b1b',
-      fontVariantNumeric: 'tabular-nums'
-    }}>{code}</span>
-  )
-}
-
-// ── Alert severity pill ───────────────────────────────────────────────────────
-const ALERT_STYLES: Record<string, { bg: string; text: string; border: string }> = {
-  urgent:   { bg: '#fef2f2', text: '#dc2626', border: '#fca5a5' },
-  look_into:{ bg: '#fff7ed', text: '#ea580c', border: '#fed7aa' },
-  heads_up: { bg: '#eff6ff', text: '#2563eb', border: '#bfdbfe' },
-}
-
-// ── Horizontal progress bar ───────────────────────────────────────────────────
-function ProgressBar({ val, color, height = 6 }: { val: number; color: string; height?: number }) {
-  return (
-    <div style={{ height, background: '#f3f4f6', borderRadius: height/2, overflow: 'hidden', flex: 1 }}>
-      <div style={{ width: `${Math.min(val, 100)}%`, height: '100%', background: color, borderRadius: height/2, transition: 'width 0.7s ease' }} />
-    </div>
+        ))}
+        {rows.length === 0 && <div style={{ color: '#9ca3af', fontSize: 12, padding: '16px 0', textAlign: 'center', fontFamily: 'monospace' }}>No data</div>}
+      </div>
+    </Panel>
   )
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
 export default function OverviewPage() {
+  const { toApiParams, refreshTick } = useDashboardControls()
+
   const [apiData, setApiData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState('')
-  const [hours,   setHours]   = useState(24)
-  const [now,     setNow]     = useState('')
-  const timer = useRef<NodeJS.Timeout>()
+  const [drill,   setDrill]   = useState<DrillKey | null>('failed')
 
-  useEffect(() => {
-    const tick = () => setNow(new Date().toLocaleTimeString('en-IN', { hour12: false }))
-    tick(); const t = setInterval(tick, 1000); return () => clearInterval(t)
-  }, [])
-
-  const load = async (h: number) => {
+  const load = async () => {
     setLoading(true); setError('')
     try {
-      const res  = await fetch(`/api/overview?hours=${h}`, { cache: 'no-store' })
+      const params = new URLSearchParams()
+      const ap = toApiParams()
+      if (ap.hours) params.set('hours', String(ap.hours))
+      if (ap.days)  params.set('days',  String(ap.days))
+      if (ap.from)  params.set('from',  ap.from as string)
+      if (ap.to)    params.set('to',    ap.to as string)
+      const res  = await fetch(`/api/overview?${params}`, { cache: 'no-store' })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || res.statusText)
       setApiData(json)
@@ -133,433 +282,326 @@ export default function OverviewPage() {
     finally { setLoading(false) }
   }
 
-  useEffect(() => {
-    load(hours)
-    timer.current = setInterval(() => load(hours), 60_000)
-    return () => clearInterval(timer.current)
-  }, [hours])
+  useEffect(() => { load() }, [refreshTick])
 
   // ── Derived ────────────────────────────────────────────────────────────────
-  const top    = apiData?.topStats?.[0]     ?? {}
-  const counts = apiData?.statusCounts?.[0] ?? {}
-  const km     = apiData?.keyMetrics?.[0]   ?? {}
-  const trend  = apiData?.hourlyTrend       ?? []
-  const dom    = apiData?.scores?.find((s:any) => s.traffic_type === 'domestic')      ?? {}
-  const intl   = apiData?.scores?.find((s:any) => s.traffic_type === 'international') ?? {}
+  const top     = apiData?.topStats?.[0]     ?? {}
+  const counts  = apiData?.statusCounts?.[0] ?? {}
+  const km      = apiData?.keyMetrics?.[0]   ?? {}
+  const trend   = apiData?.hourlyTrend       ?? []
+  const dom     = apiData?.scores?.find((s: any) => s.traffic_type === 'domestic')      ?? {}
+  const intl    = apiData?.scores?.find((s: any) => s.traffic_type === 'international') ?? {}
+  const reasons = apiData?.failureReasons    ?? []
+  const checks  = apiData?.checkResults      ?? []
+  const senders = apiData?.topSenders        ?? []
+  const tail    = apiData?.pipelineTail      ?? []
 
   const totalMsgs   = num(counts.submitted) + num(counts.scrubbed) + num(counts.failed)
-  const failedTrend = trend.map((t:any) => num(t.failed))
-  const subTrend    = trend.map((t:any) => num(t.submitted))
-
-  // Peak hour
-  const peakHour = trend.reduce((best:any, t:any) => {
-    const total = num(t.failed)+num(t.submitted)+num(t.scrubbed)
-    return total > (best.total || 0) ? { ...t, total } : best
+  const failedTotal = num(counts.failed)
+  const passedTotal = Math.max(0, totalMsgs - failedTotal)
+  const passRate    = totalMsgs > 0 ? ((passedTotal / totalMsgs) * 100).toFixed(1) : '0'
+  const topErr      = reasons[0] ?? {}
+  const topSender   = senders[0] ?? {}
+  const peakHour    = trend.reduce((best: any, t: any) => {
+    const total = num(t.submitted) + num(t.failed) + num(t.scrubbed)
+    return total > (best._total || 0) ? { ...t, _total: total } : best
   }, {})
-  const idleHours = trend.filter((t:any) => num(t.failed)+num(t.submitted)+num(t.scrubbed) === 0).length
+  const idleHours   = trend.filter((t: any) => num(t.submitted) + num(t.failed) + num(t.scrubbed) < 10).length
 
-  // Generate alerts from data
-  const alerts: any[] = []
-  if (apiData) {
-    const topSender = apiData.topSenders?.[0]
-    if (topSender && num(topSender.block_pct) > 80) {
-      alerts.push({
-        type: 'urgent', age: 'LIVE',
-        title: `${topSender.sender_id} is almost fully blocked`,
-        body: `${fmt(topSender.blocked)} of ${fmt(topSender.total)} messages from ${topSender.sender_id} were rejected. Check operator IP registration.`,
-        action: `Ask ${topSender.sender_id} for their TM IP, then add it to the whitelist`,
-      })
-    }
-    if (num(top.fail_pct) > 90) {
-      alerts.push({
-        type: 'look_into', age: '30M',
-        title: `${pct(top.fail_pct)} messages are being blocked`,
-        body: `Top failure: ${apiData.failureReasons?.[0]?.description || 'Unknown'} (${apiData.failureReasons?.[0]?.dlr_code || '—'}). Immediate action required.`,
-        action: 'Review operator IP whitelist or re-enable approved templates',
-      })
-    }
-    if (apiData.checkResults?.some((c:any) => num(c.fail_rate) > 50)) {
-      alerts.push({
-        type: 'heads_up', age: '1H',
-        title: 'High check failure rate detected',
-        body: `One or more validators showing >50% failure rate. Check authcodes and route configuration.`,
-        action: 'Renew authcodes with the principal entity (PE)',
-      })
-    }
+  // Generate ops alerts
+  const alerts: { severity: string; tone: Tone; title: string; detail: string; action: string; age: string }[] = []
+  if (apiData && senders.length) {
+    if (num(topSender.block_pct) > 80) alerts.push({
+      severity: 'Urgent', tone: 'coral',
+      title: `${topSender.sender_id} is almost fully blocked`,
+      detail: `${fmt(topSender.blocked)} of ${fmt(topSender.total)} messages from ${topSender.sender_id} were rejected. Sending IP may not be on the whitelist.`,
+      action: `Ask ${topSender.sender_id} for their TM IP, then add it to the whitelist`,
+      age: 'live',
+    })
+  }
+  if (num(top.fail_pct) > 30) alerts.push({
+    severity: 'Look into', tone: 'amber',
+    title: `${pct(top.fail_pct)} messages are being blocked`,
+    detail: `Top failure: ${topErr.description || 'Unknown'} (${topErr.dlr_code || '—'}). ${fmt(topErr.cnt || 0)} messages affected.`,
+    action: 'Review operator IP whitelist or re-enable approved templates',
+    age: '30m old',
+  })
+  if (checks.some((c: any) => num(c.fail_rate) > 50)) alerts.push({
+    severity: 'Heads up', tone: 'purple',
+    title: 'High check failure rate detected',
+    detail: `One or more validators showing >50% failure rate. Check authcodes and route configuration.`,
+    action: 'Renew authcodes with the principal entity (PE)',
+    age: '1h old',
+  })
+
+  // Drill rows
+  const drillRows: Record<DrillKey, any[]> = {
+    submitted: senders.map((s: any) => ({
+      label: s.sender_id, sub: `PEID · ${s.sender_id?.toLowerCase?.() || '—'}`,
+      count: num(s.total), pct: totalMsgs > 0 ? +((num(s.total) / totalMsgs) * 100).toFixed(1) : 0, tone: 'teal' as Tone,
+    })),
+    scrubbed: checks.length ? checks.map((c: any) => {
+      const passR = num(c.total) > 0 ? ((num(c.total) - num(c.failed)) / num(c.total)) * 100 : 100
+      return {
+        label: `${c.validator} Check`,
+        sub: passR >= 95 ? 'passing cleanly' : passR >= 80 ? 'mixed signal' : 'high failure',
+        count: num(c.total), pct: Math.round(passR),
+        tone: (passR >= 95 ? 'teal' : passR >= 80 ? 'amber' : 'coral') as Tone,
+      }
+    }) : [],
+    failed: reasons.map((r: any) => ({
+      label: `${r.dlr_code} · ${r.description}`,
+      sub: r.validator || r.validation_step || '—',
+      count: num(r.cnt), pct: num(r.pct),
+      tone: (num(r.pct) > 40 ? 'coral' : num(r.pct) > 20 ? 'amber' : 'purple') as Tone,
+    })),
   }
 
-  // Colors — light theme
-  const C = {
-    teal:   '#0d9488', orange: '#ea580c', red: '#dc2626',
-    green:  '#16a34a', purple: '#7c3aed', blue: '#2563eb',
-    muted:  '#6b7280', text:   '#111827',
-    sub:    '#374151', bg:     '#f9fafb',
-    card:   '#ffffff', border: '#e5e7eb',
-  }
-
-  const cardStyle: React.CSSProperties = {
-    background: C.card, border: `1px solid ${C.border}`,
-    borderRadius: 12, padding: '20px 22px',
-  }
+  // Check stack for modules panel
+  const C = { text: '#111827', muted: '#6b7280', border: '#e5e7eb', card: '#fff', bg: '#f9fafb' }
 
   return (
-    <div style={{ padding: '20px 24px', fontFamily: 'Inter,system-ui,sans-serif', fontSize: 13, color: C.text, minHeight: '100vh', background: C.bg }}>
+    <div style={{ fontFamily: 'Inter,system-ui,sans-serif', fontSize: 13, color: C.text }}>
 
       {/* ── Page header ── */}
-      <div style={{ marginBottom: 6 }}>
-        <div style={{ fontSize: 11, color: C.teal, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>
-          GOFLIPO SUPPORT · PIPELINE
-        </div>
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 10, color: TXT.teal, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 2 }}>GoFlipo Support · Pipeline</div>
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 }}>
           <div>
-            <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0, lineHeight: 1.2 }}>Overview</h1>
-            <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>
-              Scrubbing pipeline · last {hours}h · click a stage to drill into reasons
-            </div>
+            <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0, lineHeight: 1.2 }}>Overview</h1>
+            <div style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>Scrubbing pipeline · time range controlled from top bar · click a stage to drill</div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {[6, 24, 48].map(h => (
-              <button key={h} onClick={() => setHours(h)} style={{
-                fontSize: 11, padding: '4px 12px', borderRadius: 6, cursor: 'pointer',
-                fontFamily: 'inherit', border: `1px solid ${hours===h ? C.teal : C.border}`,
-                background: hours===h ? '#ccfbf1' : C.card, color: hours===h ? C.teal : C.muted,
-                fontWeight: hours===h ? 600 : 400,
-              }}>{h}H</button>
-            ))}
-            <div style={{ fontSize: 11, color: C.muted, paddingLeft: 8 }}>
-              <span style={{ color: '#16a34a', marginRight: 6 }}>●</span>SESSION · {now}
-            </div>
-            <button onClick={() => load(hours)} disabled={loading} style={{
-              fontSize: 11, padding: '4px 12px', borderRadius: 6, cursor: 'pointer',
-              fontFamily: 'inherit', border: `1px solid ${C.teal}`, background: '#ccfbf1',
-              color: C.teal, fontWeight: 600,
-            }}>{loading ? '…' : '↺ REFRESH'}</button>
-          </div>
+          {loading && <span style={{ fontSize: 11, fontFamily: 'monospace', color: '#9ca3af' }}>Loading…</span>}
         </div>
       </div>
 
-      {/* ── Error ── */}
       {error && (
-        <div style={{ padding: '10px 14px', marginBottom: 12, borderRadius: 8, fontSize: 12,
-          background: '#fef2f2', border: `1px solid #fca5a5`, color: C.red }}>
-          ⚠ {error}
-        </div>
+        <div style={{ padding: '10px 14px', marginBottom: 12, borderRadius: 8, fontSize: 12, background: '#fef2f2', border: '1px solid #fca5a5', color: '#dc2626' }}>⚠ {error}</div>
       )}
 
-      {/* ── Summary banner ── */}
-      <div style={{ padding: '12px 16px', marginBottom: 16, borderRadius: 8, fontSize: 13,
-        background: num(top.fail_pct) > 50 ? '#fff7ed' : '#f0fdf4',
-        border: `1px solid ${num(top.fail_pct) > 50 ? '#fed7aa' : '#bbf7d0'}`,
-        color: num(top.fail_pct) > 50 ? '#9a3412' : '#14532d' }}>
-        ℹ In the last {hours}h we received{' '}
-        <b>{fmt(totalMsgs)}</b> messages.{' '}
-        <b style={{ color: C.green }}>{fmt(counts.submitted)}</b> went through{' '}
-        ({pct(num(counts.submitted)/Math.max(totalMsgs,1)*100)} pass rate) and{' '}
-        <b style={{ color: C.red }}>{fmt(counts.failed)}</b> were blocked.{' '}
-        {apiData?.failureReasons?.[0] && (
-          <>Most failures ({apiData.failureReasons[0].pct}%) are{' '}
-          <b>{apiData.failureReasons[0].dlr_code} · {apiData.failureReasons[0].description}</b>{' '}
-          — mainly from <b>{apiData?.topSenders?.[0]?.sender_id || '—'}</b>.</>
-        )}{' '}
-        {peakHour.hour && <>Busiest time was around <b>{peakHour.hour?.slice(11,13)}:00</b>.</>}
+      {/* ── Plain-English summary panel ── */}
+      {apiData && (
+        <Panel tone={failedTotal > passedTotal ? 'coral' : 'teal'} style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+            <span style={{ fontSize: 14, flexShrink: 0, marginTop: 1 }}>ℹ</span>
+            <div style={{ fontSize: 13, lineHeight: 1.6, color: C.text }}>
+              Messages received: <strong>{fmt(totalMsgs)}</strong>.{' '}
+              <strong style={{ color: '#16a34a' }}>{fmt(passedTotal)}</strong> went through ({passRate}% pass rate) and{' '}
+              <strong style={{ color: TXT.coral }}>{fmt(failedTotal)}</strong> were blocked.{' '}
+              {topErr.dlr_code && <>Most failures (<strong>{pct(topErr.pct)}</strong>) are <strong>{topErr.dlr_code} · {topErr.description}</strong>
+              {topSender.sender_id && <> — mainly from <strong>{topSender.sender_id}</strong></>}.</>}{' '}
+              {peakHour.hour && <>Busiest hour was around <strong>{peakHour.hour?.slice(11, 13)}:00</strong>.</>}
+            </div>
+          </div>
+        </Panel>
+      )}
+
+      {/* ── Status chips ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 8, marginBottom: 20 }}>
+        <StatusChip icon="📥" tone="teal"   label="Messages today"  value={fmt(totalMsgs)}        sub="received in window"    />
+        <StatusChip icon="✅" tone="purple" label="Pass rate"        value={passRate + '%'}          sub={`${fmt(passedTotal)} delivered`} />
+        <StatusChip icon="🚫" tone="coral"  label="Blocked"          value={fmt(failedTotal)}       sub="rejected by checks"   live />
+        <StatusChip icon="🔥" tone="amber"  label="Top reason"       value={topErr.dlr_code || '—'} sub={`${topErr.description || '—'} · ${pct(topErr.pct)}`} />
+        <StatusChip icon="⏰" tone="teal"   label="Busy hour"        value={peakHour.hour?.slice(11, 13) ? peakHour.hour.slice(11, 13) + ':00' : '—'} sub={`${fmt(peakHour._total)} msgs`} />
+        <StatusChip icon="⚠️" tone="coral"  label="Needs attention"  value={String(alerts.length)} sub="open alerts to review" live />
       </div>
 
-      {/* ── 6 top stat cards ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 10, marginBottom: 16 }}>
+      {/* ── Pipeline flow ── */}
+      <SectionLabel tone="teal">Pipeline flow · click to drill</SectionLabel>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 0 }}>
+        <PipelineCard eyebrow="Submitted" title="Submitted" tone="teal"
+          sub={`${fmt(counts.submitted || totalMsgs)} records · 100%`}
+          active={drill === 'submitted'} onClick={() => setDrill(drill === 'submitted' ? null : 'submitted')} />
+        <PipelineCard eyebrow="GoFlipo · Scrubbed" title="Scrubbed" tone="purple" arrow
+          sub={`${fmt(counts.scrubbed)} records · 0% drop`}
+          active={drill === 'scrubbed'} onClick={() => setDrill(drill === 'scrubbed' ? null : 'scrubbed')} />
+        <PipelineCard eyebrow="GoFlipo · Rejected / Blocked" title="Failed" tone="coral" arrow
+          sub={`${fmt(failedTotal)} blocked · ${pct(top.fail_pct)} variance`}
+          active={drill === 'failed'} onClick={() => setDrill(drill === 'failed' ? null : 'failed')} />
+      </div>
+
+      {/* ── Drill panel ── */}
+      {drill && (
+        <div style={{ marginBottom: 16, borderRadius: '0 0 12px 12px', overflow: 'hidden' }}>
+          <DrillShell
+            tone={drill === 'submitted' ? 'teal' : drill === 'scrubbed' ? 'purple' : 'coral'}
+            eyebrow={drill === 'submitted' ? 'Submitted · sources' : drill === 'scrubbed' ? 'Scrubbed · check modules' : 'Failed · reasons'}
+            title={drill === 'submitted' ? 'Where submissions come from' : drill === 'scrubbed' ? 'What ran on each record' : 'Why submissions were blocked'}
+            total={drill === 'submitted' ? totalMsgs : drill === 'scrubbed' ? num(counts.scrubbed) : failedTotal}
+            rows={drillRows[drill]}
+            onClose={() => setDrill(null)}
+          />
+        </div>
+      )}
+      {!drill && <div style={{ marginBottom: 16 }} />}
+
+      {/* ── Ops alerts ── */}
+      {alerts.length > 0 && (
+        <>
+          <SectionLabel tone="coral">What needs attention right now</SectionLabel>
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(alerts.length, 3)},1fr)`, gap: 12, marginBottom: 16 }}>
+            {alerts.map((a, i) => (
+              <Panel key={i} tone={a.tone}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+                  <Pill tone={a.tone}>{a.severity}</Pill>
+                  <span style={{ fontSize: 10.5, fontFamily: 'monospace', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{a.age}</span>
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>{a.title}</div>
+                <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.55, marginBottom: 10 }}>{a.detail}</div>
+                <div style={{ borderTop: '1px solid #f3f4f6', paddingTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <span style={{ fontSize: 11, fontFamily: 'monospace', color: TXT[a.tone] }}>→ {a.action}</span>
+                  <button style={{ fontSize: 10.5, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.07em', padding: '2px 8px', borderRadius: 5, border: '1px solid #e5e7eb', background: '#f9fafb', cursor: 'pointer', color: C.muted }}>Ack</button>
+                </div>
+              </Panel>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* ── 24H Throughput ── */}
+      <SectionLabel tone="purple">24h throughput · submissions / hour</SectionLabel>
+      <Panel tone="purple" style={{ marginBottom: 16 }}>
+        <LineChart data={trend} tone="purple" />
+        <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', fontSize: 11, fontFamily: 'monospace', color: C.muted }}>
+          <span>peak · {fmt(peakHour._total)} @ {peakHour.hour?.slice(11, 13) || '—'}:00</span>
+          <span>total · {fmt(totalMsgs)} submits</span>
+          <span>idle hours · {idleHours}</span>
+        </div>
+      </Panel>
+
+      {/* ── Scrub coverage ── */}
+      <SectionLabel tone="teal">Scrub coverage</SectionLabel>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+        {[{ tone: 'teal' as Tone, eyebrow: 'Domestic scrub · IN', d: dom, label: 'domestic traffic' },
+          { tone: 'purple' as Tone, eyebrow: 'International scrub', d: intl, label: 'cross-border · roaming + intl' }]
+          .map(({ tone, eyebrow, d, label }) => (
+            <Panel key={eyebrow} tone={tone} eyebrow={eyebrow}>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16, marginBottom: 16 }}>
+                <div style={{ fontSize: 56, fontWeight: 700, color: TXT[tone], lineHeight: 1 }}>
+                  {d.pass_rate ? Math.round(num(d.pass_rate)) : '—'}
+                </div>
+                <div style={{ fontSize: 12, color: C.muted, paddingBottom: 6 }}>{label}</div>
+                <div style={{ marginLeft: 'auto', paddingBottom: 4 }}>
+                  <Sparkline data={[]} tone={tone} />
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, paddingTop: 12, borderTop: '1px solid #f3f4f6' }}>
+                {[['Passed', d.passed, 'teal'], ['Blocked', d.blocked, 'coral'], ['Pass-rate', d.pass_rate ? pct(d.pass_rate, 0) : '—', 'amber']].map(([lbl, val, c]) => (
+                  <div key={lbl as string}>
+                    <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.18em', color: '#9ca3af', marginBottom: 4 }}>{lbl as string}</div>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: TXT[c as Tone] }}>{typeof val === 'number' ? fmt(val) : val as string}</div>
+                  </div>
+                ))}
+              </div>
+            </Panel>
+          ))}
+      </div>
+
+      {/* ── Key metrics ── */}
+      <SectionLabel tone="teal">Key metrics</SectionLabel>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 16 }}>
         {[
-          { label: 'MESSAGES TODAY', value: fmt(totalMsgs),          sub: 'received in last ' + hours + 'h', color: C.text },
-          { label: 'PASS RATE',      value: pct(km.pass_rate),        sub: `${fmt(km.submission)} delivered`, color: C.teal },
-          { label: 'BLOCKED',        value: fmt(km.in_block),         sub: 'rejected by checks', color: C.red },
-          { label: 'TOP REASON',     value: apiData?.failureReasons?.[0]?.dlr_code || '—', sub: apiData?.failureReasons?.[0]?.description || '—', color: C.orange, small: true },
-          { label: 'BUSY HOUR',      value: peakHour.hour ? peakHour.hour.slice(11,13)+':00' : '—', sub: fmt(peakHour.total) + ' msgs', color: C.purple },
-          { label: 'NEEDS ACTION',   value: String(alerts.length),    sub: 'open alerts to review', color: alerts.length > 0 ? C.red : C.green, dot: alerts.length > 0 },
-        ].map(({ label, value, sub, color, small, dot }) => (
-          <div key={label} style={cardStyle}>
-            <div style={{ fontSize: 10, color: C.muted, fontWeight: 600, letterSpacing: '0.07em', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
-              {dot && <span style={{ width: 6, height: 6, borderRadius: '50%', background: C.red, display: 'inline-block' }} />}
-              {label}
-            </div>
-            <div style={{ fontSize: small ? 16 : 24, fontWeight: 700, color, lineHeight: 1.1, wordBreak: 'break-word', marginBottom: 3 }}>{value}</div>
-            <div style={{ fontSize: 11, color: C.muted }}>{sub}</div>
+          { label: 'Submitted', value: fmt(totalMsgs), sub: 'baseline', tone: 'teal' as Tone },
+          { label: 'Scrubbed',  value: fmt(counts.scrubbed), sub: '0% drop', tone: 'purple' as Tone },
+          { label: 'Blocked',   value: fmt(failedTotal), sub: `↑ ${pct(top.fail_pct)} variance`, tone: 'coral' as Tone },
+          { label: 'Pass rate', value: passRate + '%', sub: `${fmt(passedTotal)} delivered`, tone: 'amber' as Tone },
+        ].map(m => (
+          <div key={m.label} style={{ background: C.card, border: `1px solid ${C.border}`, borderTop: `3px solid ${TXT[m.tone]}`, borderRadius: 12, padding: '16px 18px' }}>
+            <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: '#9ca3af', marginBottom: 8 }}>{m.label}</div>
+            <div style={{ fontSize: 40, fontWeight: 700, color: TXT[m.tone], lineHeight: 1, marginBottom: 8 }}>{m.value}</div>
+            <div style={{ fontSize: 11.5, color: C.muted, fontFamily: 'monospace' }}>{m.sub}</div>
           </div>
         ))}
       </div>
 
-      {/* ── Pipeline flow: Submitted / Scrubbed / Failed ── */}
-      <div style={{ marginBottom: 6, fontSize: 11, color: C.muted, fontWeight: 600, letterSpacing: '0.07em', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ height: 1, width: 32, background: C.border }} />
-        PIPELINE FLOW · CLICK TO DRILL
-        <div style={{ height: 1, flex: 1, background: C.border }} />
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 24px 1fr 24px 1fr', gap: 0, marginBottom: 16, alignItems: 'stretch' }}>
-        {/* Submitted */}
-        <div style={{ ...cardStyle, borderRadius: '12px 0 0 12px', borderRight: 0 }}>
-          <div style={{ fontSize: 10, color: C.muted, fontWeight: 600, letterSpacing: '0.07em', marginBottom: 8, display: 'flex', justifyContent: 'space-between' }}>
-            SUBMITTED <span style={{ fontSize: 9, color: C.muted, fontWeight: 400 }}>GOFLIPO</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <div style={{ fontSize: 36, fontWeight: 700, color: C.teal, lineHeight: 1 }}>{fmt(counts.submitted)}</div>
-              <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>{fmt(totalMsgs)} records · {pct(num(counts.submitted)/Math.max(totalMsgs,1)*100)}</div>
-            </div>
-            <Sparkline data={subTrend} color={C.teal} />
-          </div>
-        </div>
-        <div style={{ background: C.card, borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.muted, fontSize: 16 }}>›</div>
-        {/* Scrubbed */}
-        <div style={{ ...cardStyle, borderRadius: 0, borderRight: 0 }}>
-          <div style={{ fontSize: 10, color: C.muted, fontWeight: 600, letterSpacing: '0.07em', marginBottom: 8, display: 'flex', justifyContent: 'space-between' }}>
-            GOFLIPO · SCRUBBED <span style={{ fontSize: 9, color: C.muted, fontWeight: 400 }}>PIPELINE</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <div style={{ fontSize: 36, fontWeight: 700, color: C.purple, lineHeight: 1 }}>{fmt(counts.scrubbed)}</div>
-              <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>{fmt(counts.scrubbed)} records</div>
-            </div>
-            <Sparkline data={trend.map((t:any) => num(t.scrubbed))} color={C.purple} />
-          </div>
-        </div>
-        <div style={{ background: C.card, borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.muted, fontSize: 16 }}>›</div>
-        {/* Failed */}
-        <div style={{ ...cardStyle, borderRadius: '0 12px 12px 0' }}>
-          <div style={{ fontSize: 10, color: C.muted, fontWeight: 600, letterSpacing: '0.07em', marginBottom: 8, display: 'flex', justifyContent: 'space-between' }}>
-            GOFLIPO · REJECTED / BLOCKED <span style={{ fontSize: 9, color: C.red, fontWeight: 400 }}>▼</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <div style={{ fontSize: 36, fontWeight: 700, color: C.red, lineHeight: 1 }}>{fmt(counts.failed)}</div>
-              <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>{fmt(counts.failed)} blocked · {pct(num(top.fail_pct))} variance</div>
-            </div>
-            <Sparkline data={failedTrend} color={C.red} />
-          </div>
-        </div>
-      </div>
-
-      {/* ── Failure reasons ── */}
-      <div style={{ ...cardStyle, marginBottom: 16 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <div>
-            <div style={{ fontSize: 11, color: C.red, fontWeight: 600, letterSpacing: '0.07em', marginBottom: 2 }}>FAILED · REASONS</div>
-            <div style={{ fontSize: 16, fontWeight: 700 }}>Why submissions were blocked</div>
-          </div>
-          <span style={{ fontSize: 11, color: C.muted }}>total · {fmt(counts.failed)}</span>
-        </div>
-        {(!apiData?.failureReasons?.length) ? (
-          <div style={{ color: C.muted, fontSize: 13 }}>No failures in this window 🎉</div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {apiData.failureReasons.map((r:any) => {
-              const barColor = num(r.pct) > 50 ? C.orange : num(r.pct) > 20 ? '#f59e0b' : '#fbbf24'
-              return (
-                <div key={r.dlr_code}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: `1px solid ${C.border}` }}>
-                    <div style={{ width: 120, flexShrink: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600 }}>{r.dlr_code} · <span style={{ fontSize: 11, fontWeight: 500, color: C.sub }}>{r.description}</span></div>
-                      <div style={{ fontSize: 11, color: C.muted }}>{r.validator}</div>
-                    </div>
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <ProgressBar val={num(r.pct)} color={barColor} height={8} />
-                    </div>
-                    <div style={{ fontSize: 13, fontWeight: 600, width: 60, textAlign: 'right', flexShrink: 0 }}>{fmt(r.cnt)}</div>
-                    <div style={{ fontSize: 12, color: C.orange, fontWeight: 700, width: 50, textAlign: 'right', flexShrink: 0 }}>{pct(r.pct)}</div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* ── Alerts ── */}
-      {alerts.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, letterSpacing: '0.07em', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <div style={{ height: 2, width: 24, background: C.red, borderRadius: 1 }} />
-            WHAT NEEDS ATTENTION RIGHT NOW
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(alerts.length, 3)}, 1fr)`, gap: 12 }}>
-            {alerts.map((a, i) => {
-              const s = ALERT_STYLES[a.type] || ALERT_STYLES.heads_up
-              return (
-                <div key={i} style={{ background: s.bg, border: `1px solid ${s.border}`, borderRadius: 10, padding: '16px 18px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, background: s.text, color: '#fff', textTransform: 'uppercase' }}>{a.type.replace('_',' ')}</span>
-                    <span style={{ fontSize: 10, color: C.muted, marginLeft: 'auto' }}>{a.age} OLD</span>
-                  </div>
-                  <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6, lineHeight: 1.4 }}>{a.title}</div>
-                  <div style={{ fontSize: 12, color: C.sub, marginBottom: 10, lineHeight: 1.5 }}>{a.body}</div>
-                  <div style={{ fontSize: 11, color: s.text }}>→ {a.action}</div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ── 24H Throughput chart ── */}
-      <div style={{ ...cardStyle, marginBottom: 16 }}>
-        <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, letterSpacing: '0.07em', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-          <div style={{ height: 2, width: 24, background: C.border, borderRadius: 1 }} />
-          24H THROUGHPUT · SUBMISSIONS / HOUR
-        </div>
-        <HourlyChart data={trend} color={C.teal} />
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: C.muted, marginTop: 8 }}>
-          <span>peak · {fmt(peakHour.total)} @ {peakHour.hour?.slice(11,13)||'—'}:00</span>
-          <span>total · {fmt(totalMsgs)} submits</span>
-          <span>idle hours · {idleHours}</span>
-        </div>
-      </div>
-
-      {/* ── Scrub coverage + Source IP ── */}
+      {/* ── Source IPs + Recent trace ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-        {/* Domestic + International side by side */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ ...cardStyle }}>
-            <div style={{ fontSize: 10, color: C.teal, fontWeight: 600, letterSpacing: '0.08em', marginBottom: 8 }}>DOMESTIC SCRUB · IN</div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-              <div>
-                <div style={{ fontSize: 40, fontWeight: 700, color: C.teal, lineHeight: 1 }}>{dom.pass_rate ? Math.round(num(dom.pass_rate)) : 0}</div>
-                <div style={{ fontSize: 12, color: C.muted }}>domestic traffic</div>
+        <Panel tone="amber" eyebrow="Source IP infrastructure" title="Where traffic originates">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+            {(apiData?.sourceIps || []).slice(0, 6).map((s: any, i: number) => (
+              <div key={s.originator_ip || i} style={{ display: 'grid', gridTemplateColumns: '1fr 120px 50px', alignItems: 'center', gap: 12, padding: '9px 0', borderBottom: '1px solid #f3f4f6' }}>
+                <div>
+                  <div style={{ fontFamily: 'monospace', fontSize: 12.5 }}>{s.originator_ip || '—'}</div>
+                  <div style={{ fontSize: 11, color: C.muted }}>{fmt(s.total)} msgs</div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Bar val={num(s.pct)} tone="amber" height={5} />
+                  <span style={{ fontFamily: 'monospace', fontSize: 11.5, color: C.muted, width: 44, textAlign: 'right', flexShrink: 0 }}>{fmt(s.total)}</span>
+                </div>
+                <Pill tone="amber">{pct(s.pct, 0)}</Pill>
               </div>
-              <Sparkline data={subTrend} color={C.teal} h={40} />
-            </div>
-            <div style={{ display: 'flex', gap: 20 }}>
-              <div><div style={{ fontSize: 10, color: C.muted, marginBottom: 2 }}>PASSED</div><div style={{ fontSize: 18, fontWeight: 700, color: C.green }}>{fmt(dom.passed)}</div></div>
-              <div><div style={{ fontSize: 10, color: C.muted, marginBottom: 2 }}>BLOCKED</div><div style={{ fontSize: 18, fontWeight: 700, color: C.red }}>{fmt(dom.blocked)}</div></div>
-              <div><div style={{ fontSize: 10, color: C.muted, marginBottom: 2 }}>PASS-RATE</div><div style={{ fontSize: 18, fontWeight: 700, color: C.teal }}>{pct(dom.pass_rate)}</div></div>
-            </div>
+            ))}
+            {!apiData?.sourceIps?.length && <div style={{ color: '#9ca3af', fontSize: 12, padding: '16px 0', textAlign: 'center', fontFamily: 'monospace' }}>No IP data</div>}
           </div>
-          <div style={{ ...cardStyle }}>
-            <div style={{ fontSize: 10, color: C.purple, fontWeight: 600, letterSpacing: '0.08em', marginBottom: 8 }}>INTERNATIONAL SCRUB</div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-              <div>
-                <div style={{ fontSize: 40, fontWeight: 700, color: C.purple, lineHeight: 1 }}>{intl.pass_rate ? Math.round(num(intl.pass_rate)) : 0}</div>
-                <div style={{ fontSize: 12, color: C.muted }}>cross-border · roaming + intl</div>
-              </div>
-              <Sparkline data={trend.map((t:any) => num(t.scrubbed))} color={C.purple} h={40} />
-            </div>
-            <div style={{ display: 'flex', gap: 20 }}>
-              <div><div style={{ fontSize: 10, color: C.muted, marginBottom: 2 }}>PASSED</div><div style={{ fontSize: 18, fontWeight: 700, color: C.green }}>{fmt(intl.passed)}</div></div>
-              <div><div style={{ fontSize: 10, color: C.muted, marginBottom: 2 }}>BLOCKED</div><div style={{ fontSize: 18, fontWeight: 700, color: C.red }}>{fmt(intl.blocked)}</div></div>
-              <div><div style={{ fontSize: 10, color: C.muted, marginBottom: 2 }}>PASS-RATE</div><div style={{ fontSize: 18, fontWeight: 700, color: C.purple }}>{pct(intl.pass_rate)}</div></div>
-            </div>
-          </div>
-        </div>
+        </Panel>
 
-        {/* Key metrics 4 cards */}
-        <div>
-          <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, letterSpacing: '0.07em', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <div style={{ height: 2, width: 24, background: C.border, borderRadius: 1 }} />
-            KEY METRICS
+        <Panel tone="coral" eyebrow="Live trace · last submissions" title="Tail of the pipeline">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+            {tail.slice(0, 6).map((s: any, i: number) => {
+              const ok = num(apiData?.failureReasons?.find((r: any) => r.dlr_code === s.dlr_code)?.is_success) === 1 || s.dlr_code === '000'
+              return (
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '56px 1fr 56px', alignItems: 'center', gap: 8, padding: '8px 0', borderBottom: '1px solid #f3f4f6', fontSize: 11.5 }}>
+                  <span style={{ fontFamily: 'monospace', color: C.muted }}>{ts(s.timestamp)}</span>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>{s.sender_id}</span>
+                      <span style={{ fontFamily: 'monospace', color: C.muted, fontSize: 10.5 }}>· {s.pe_id || '—'}</span>
+                    </div>
+                    <div style={{ fontSize: 10.5, color: C.muted, fontFamily: 'monospace' }}>
+                      {s.validation_step?.replace(/_/g, ' ') || '—'} · {s.description || '—'}
+                    </div>
+                  </div>
+                  <Pill tone={ok ? 'success' : 'danger'}>{s.dlr_code}</Pill>
+                </div>
+              )
+            })}
+            {tail.length === 0 && <div style={{ color: '#9ca3af', fontSize: 12, padding: '16px 0', textAlign: 'center', fontFamily: 'monospace' }}>No recent submissions</div>}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        </Panel>
+      </div>
+
+      {/* ── Check modules + Variance breakdown ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+        <Panel tone="teal" eyebrow="GoFlipo check modules" title="Check stack">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+            {checks.map((c: any, i: number) => {
+              const passR = num(c.total) > 0 ? ((num(c.total) - num(c.failed)) / num(c.total)) * 100 : 100
+              const state = passR >= 95 ? 'ok' : passR >= 80 ? 'warn' : 'fail'
+              const icon = state === 'ok' ? '✓' : state === 'warn' ? '⚠' : '✕'
+              const iconBg = state === 'ok' ? '#dcfce7' : state === 'warn' ? '#fff7ed' : '#fee2e2'
+              const iconColor = state === 'ok' ? '#166534' : state === 'warn' ? '#92400e' : '#991b1b'
+              const pillTone: Tone = state === 'ok' ? 'teal' : state === 'warn' ? 'amber' : 'coral'
+              return (
+                <div key={c.validator || i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: '1px solid #f3f4f6', fontSize: 13 }}>
+                  <span style={{ width: 24, height: 24, borderRadius: 6, background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: iconColor, fontWeight: 700, flexShrink: 0 }}>{icon}</span>
+                  <span style={{ flex: 1, fontWeight: 500 }}>{c.validator} Check</span>
+                  <span style={{ fontFamily: 'monospace', fontSize: 12, color: C.muted, width: 40, textAlign: 'right' }}>{fmt(c.total)}</span>
+                  <Pill tone={pillTone}>{Math.round(passR)}%</Pill>
+                </div>
+              )
+            })}
+            {checks.length === 0 && <div style={{ color: '#9ca3af', fontSize: 12, padding: '16px 0', textAlign: 'center', fontFamily: 'monospace' }}>No check data</div>}
+          </div>
+        </Panel>
+
+        <Panel tone="purple" eyebrow="Variance breakdown" title="Where volume is lost">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {[
-              { label: 'SUBMITTED',  value: fmt(km.submission), sub: 'baseline', color: C.teal },
-              { label: 'SCRUBBED',   value: fmt(km.scrubbing),  sub: `${num(km.submission)>0 ? pct(num(km.scrubbing)/num(km.submission)*100) : '0%'} drop`, color: C.purple },
-              { label: 'BLOCKED',    value: fmt(km.in_block),   sub: `↑ ${pct(num(top.fail_pct))} variance`, color: C.red },
-              { label: 'PASS RATE',  value: pct(km.pass_rate),  sub: `${fmt(num(km.submission)-num(km.in_block))} delivered`, color: C.orange },
-            ].map(({ label, value, sub, color }) => (
-              <div key={label} style={cardStyle}>
-                <div style={{ fontSize: 10, color: C.muted, fontWeight: 600, letterSpacing: '0.07em', marginBottom: 6 }}>{label}</div>
-                <div style={{ fontSize: 28, fontWeight: 700, color, lineHeight: 1 }}>{value}</div>
-                <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>{sub}</div>
+              { label: 'Submitted → Scrubbed', val: 0, tone: 'teal' as Tone },
+              { label: 'Scrubbed → Final Pass', val: num(km.pass_rate), tone: 'purple' as Tone },
+              { label: 'Blocked (GoFlipo)', val: num(top.fail_pct), tone: 'amber' as Tone },
+              ...reasons.slice(0, 2).map((r: any) => ({ label: r.description || r.dlr_code, val: num(r.pct), tone: 'coral' as Tone })),
+            ].map(({ label, val, tone }) => (
+              <div key={label}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, marginBottom: 6 }}>
+                  <span>{label}</span>
+                  <span style={{ fontFamily: 'monospace', color: C.muted }}>{pct(val, 0)}</span>
+                </div>
+                <Bar val={val} tone={tone} height={5} />
               </div>
             ))}
           </div>
-        </div>
-      </div>
-
-      {/* ── Source IP + Tail of pipeline ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-        {/* Top senders */}
-        <div style={cardStyle}>
-          <div style={{ fontSize: 11, color: C.orange, fontWeight: 600, letterSpacing: '0.08em', marginBottom: 4 }}>SOURCE IP INFRASTRUCTURE</div>
-          <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 14 }}>Where traffic originates</div>
-          {(apiData?.topSenders || []).map((s:any) => (
-            <div key={s.sender_id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: `1px solid ${C.border}` }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.sender_id}</div>
-                <div style={{ fontSize: 11, color: C.muted }}>{num(s.block_pct) > 90 ? 'Fully blocked sender' : 'Active sender'}</div>
-              </div>
-              <ProgressBar val={num(s.block_pct)} color={num(s.block_pct) > 80 ? C.orange : C.teal} height={6} />
-              <span style={{ fontSize: 12, fontWeight: 600, width: 50, textAlign: 'right', flexShrink: 0 }}>{fmt(s.total)}</span>
-              <span style={{
-                fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 4, flexShrink: 0,
-                background: num(s.block_pct) > 80 ? '#fff7ed' : '#f0fdf4',
-                color: num(s.block_pct) > 80 ? C.orange : C.green,
-              }}>{pct(s.block_pct)}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Tail of pipeline */}
-        <div style={cardStyle}>
-          <div style={{ fontSize: 11, color: C.purple, fontWeight: 600, letterSpacing: '0.08em', marginBottom: 4 }}>LIVE TRACE · LAST SUBMISSIONS</div>
-          <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 14 }}>Tail of the pipeline</div>
-          {(apiData?.tailLogs || []).map((l:any, i:number) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '8px 0', borderBottom: `1px solid ${C.border}` }}>
-              <div style={{ fontSize: 11, color: C.muted, flexShrink: 0, width: 55 }}>{ts(l.timestamp)}</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>{l.sender_id || '—'} · <span style={{ fontWeight: 400, color: C.muted }}>{l.pe_id}</span></div>
-                <div style={{ fontSize: 11, color: C.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {l.validation_step} · {l.description || (l.is_success ? 'delivered · OK' : 'blocked')}
-                </div>
-              </div>
-              <CodeBadge code={l.dlr_code} ok={!!l.is_success} />
-            </div>
-          ))}
-          {!apiData?.tailLogs?.length && <div style={{ color: C.muted, fontSize: 12 }}>No recent records</div>}
-        </div>
-      </div>
-
-      {/* ── Check stack + Variance breakdown ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        {/* Check modules */}
-        <div style={cardStyle}>
-          <div style={{ fontSize: 11, color: C.teal, fontWeight: 600, letterSpacing: '0.08em', marginBottom: 4 }}>GOFLIPO CHECK MODULES</div>
-          <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 14 }}>Check stack</div>
-          {(apiData?.checkResults || []).map((r:any, i:number) => {
-            const ok = num(r.fail_rate) < 10
-            const icon = ok ? '✓' : num(r.fail_rate) < 30 ? '⚠' : '✕'
-            const iconColor = ok ? C.green : num(r.fail_rate) < 30 ? C.orange : C.red
-            return (
-              <div key={r.validator} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: `1px solid ${C.border}` }}>
-                <span style={{ width: 22, height: 22, borderRadius: 6, background: ok ? '#dcfce7' : '#fef2f2',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 12, color: iconColor, flexShrink: 0, fontWeight: 700 }}>{icon}</span>
-                <span style={{ flex: 1, fontSize: 13, fontWeight: 500 }}>{r.validator} Check</span>
-                <span style={{ fontSize: 13, color: C.muted, width: 34, textAlign: 'right' }}>{fmt(r.total)}</span>
-                <span style={{
-                  fontSize: 12, fontWeight: 700, padding: '2px 10px', borderRadius: 4,
-                  background: ok ? '#dcfce7' : '#fee2e2',
-                  color: ok ? C.green : C.red, width: 44, textAlign: 'center'
-                }}>{pct(num(r.total) > 0 ? (num(r.total) - num(r.failed)) / num(r.total) * 100 : 0, 0)}</span>
-              </div>
-            )
-          })}
-        </div>
-
-        {/* Variance breakdown */}
-        <div style={cardStyle}>
-          <div style={{ fontSize: 11, color: C.purple, fontWeight: 600, letterSpacing: '0.08em', marginBottom: 4 }}>VARIANCE BREAKDOWN</div>
-          <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 14 }}>Where volume is lost</div>
-          {[
-            { label: 'Submitted → Scrubbed', val: num(counts.submitted)>0 && totalMsgs>0 ? (1 - num(counts.scrubbed)/totalMsgs)*100 : 0, suffix: '% loss', color: C.teal },
-            { label: 'Scrubbed → Final Pass', val: num(km.pass_rate), suffix: '%', color: C.purple },
-            { label: 'Blocked (GoFlipo)',     val: num(top.fail_pct), suffix: '%',  color: C.orange },
-            ...(apiData?.blocklistBreakdown || []).slice(0, 3).map((b:any) => ({
-              label: b.reason, val: num(b.pct), suffix: '%', color: C.red
-            }))
-          ].map(({ label, val, suffix, color }) => (
-            <div key={label} style={{ marginBottom: 12 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                <span style={{ fontSize: 13 }}>{label}</span>
-                <span style={{ fontSize: 13, fontWeight: 600, color }}>{val.toFixed(0)}{suffix}</span>
-              </div>
-              <ProgressBar val={val} color={color} height={8} />
-            </div>
-          ))}
-        </div>
+        </Panel>
       </div>
 
     </div>

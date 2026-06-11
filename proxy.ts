@@ -1,12 +1,12 @@
-// middleware.ts — project ROOT mein rakhna (app/ ke bahar)
-// Next.js 16+ mein "proxy" convention use hota hai
-// Yeh file protected routes ko guard karta hai
+// proxy.ts — project ROOT (replaces deprecated middleware.ts)
+// Next.js 16+ uses "proxy" convention instead of "middleware"
+// Handles route protection and root redirect
 
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const token = await getToken({
     req: request,
     secret: process.env.NEXTAUTH_SECRET,
@@ -14,13 +14,23 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
-  // Agar login page pe hain aur already logged in → dashboard pe bhejo
+  // Root "/" → redirect to /login (or /dashboard if already signed in)
+  if (pathname === '/') {
+    return NextResponse.redirect(
+      new URL(token ? '/dashboard' : '/login', request.url)
+    )
+  }
+
+  // Already logged in and hitting /login → send to dashboard
   if (pathname === '/login' && token) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
-  // Protected routes — login nahi hai toh /login pe bhejo
-  const protectedPaths = ['/dashboard', '/users', '/failures', '/trace', '/scrubbing', '/tps', '/mis']
+  // Protected routes — no session → /login
+  const protectedPaths = [
+    '/dashboard', '/users', '/failures',
+    '/trace', '/scrubbing', '/tps', '/mis',
+  ]
   const isProtected = protectedPaths.some(p => pathname.startsWith(p))
 
   if (isProtected && !token) {
@@ -32,6 +42,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    '/',
     '/dashboard/:path*',
     '/users/:path*',
     '/failures/:path*',
