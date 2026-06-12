@@ -22,7 +22,6 @@ const dmSans = DM_Sans({
 export const metadata: Metadata = {
   title: 'GoFlipo/Support — Internal Operations Console',
   description: 'Real-time delivery, scrubbing & latency telemetry',
-  // Prevent indexing — internal tool
   robots: { index: false, follow: false },
 }
 
@@ -34,7 +33,6 @@ export default function RootLayout({
   return (
     <html lang="en" className={dmSans.variable}>
       <body>
-        {/* Providers = SessionProvider wrapper (client component) */}
         <Providers>{children}</Providers>
       </body>
     </html>
