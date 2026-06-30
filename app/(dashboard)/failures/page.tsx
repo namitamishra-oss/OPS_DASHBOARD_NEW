@@ -21,9 +21,9 @@ function ts(iso: string) {
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 type Tone = 'coral' | 'amber' | 'purple' | 'teal'
-const TXT:  Record<Tone, string> = { coral: '#ef4444', amber: '#f59e0b', purple: '#a855f7', teal: '#0d9488' }
-const BG:   Record<Tone, string> = { coral: '#fef2f2', amber: '#fff7ed', purple: '#faf5ff', teal: '#f0fdfa' }
-const BDR:  Record<Tone, string> = { coral: '#fca5a5', amber: '#fed7aa', purple: '#d8b4fe', teal: '#99f6e4' }
+const TXT:  Record<Tone, string> = { coral: 'hsl(var(--coral-text))', amber: 'hsl(var(--amber-text))', purple: 'hsl(var(--purple-text))', teal: 'hsl(var(--teal-text))' }
+const BG:   Record<Tone, string> = { coral: 'hsl(var(--coral-bg))', amber: 'hsl(var(--amber-bg))', purple: 'hsl(var(--purple-bg))', teal: 'hsl(var(--teal-bg))' }
+const BDR:  Record<Tone, string> = { coral: 'hsl(var(--coral-border))', amber: 'hsl(var(--amber-border))', purple: 'hsl(var(--purple-border))', teal: 'hsl(var(--teal-border))' }
 
 function validatorTone(v: string): Tone {
   if (!v) return 'coral'
@@ -51,7 +51,7 @@ function Pill({ children, tone }: { children: React.ReactNode; tone: Tone }) {
 
 function Bar({ val, tone, height = 5 }: { val: number; tone: Tone; height?: number }) {
   return (
-    <div style={{ height, background: '#f3f4f6', borderRadius: height / 2, overflow: 'hidden', flex: 1, minWidth: 40 }}>
+    <div style={{ height, background: 'hsl(var(--muted))', borderRadius: height / 2, overflow: 'hidden', flex: 1, minWidth: 40 }}>
       <div style={{ width: `${Math.min(val, 100)}%`, height: '100%', background: TXT[tone], borderRadius: height / 2, transition: 'width 0.6s ease' }} />
     </div>
   )
@@ -59,13 +59,13 @@ function Bar({ val, tone, height = 5 }: { val: number; tone: Tone; height?: numb
 
 function KpiCard({ label, value, sub, tone, live }: { label: string; value: React.ReactNode; sub?: string; tone: Tone; live?: boolean }) {
   return (
-    <div style={{ background: '#fff', border: `1px solid #e5e7eb`, borderRadius: 12, padding: '18px 20px', borderTop: `3px solid ${TXT[tone]}` }}>
-      <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#9ca3af', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+    <div style={{ background: 'hsl(var(--surface-1))', border: `1px solid hsl(var(--border))`, borderRadius: 12, padding: '18px 20px', borderTop: `3px solid ${TXT[tone]}` }}>
+      <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'hsl(var(--muted-foreground))', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
         {live && <span style={{ width: 6, height: 6, borderRadius: '50%', background: TXT['teal'], display: 'inline-block' }} />}
         {label}
       </div>
       <div style={{ fontSize: 26, fontWeight: 700, color: TXT[tone], lineHeight: 1.1, marginBottom: 4 }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: '#9ca3af', fontFamily: 'monospace' }}>{sub}</div>}
+      {sub && <div style={{ fontSize: 11, color: 'hsl(var(--muted-foreground))', fontFamily: 'monospace' }}>{sub}</div>}
     </div>
   )
 }
@@ -75,12 +75,12 @@ function Panel({ children, tone, eyebrow, title, actions, style }: {
   actions?: React.ReactNode; style?: React.CSSProperties
 }) {
   return (
-    <div style={{ background: '#fff', borderRadius: 12, border: `1px solid #e5e7eb`, borderTop: `3px solid ${TXT[tone]}`, overflow: 'hidden', ...style }}>
+    <div style={{ background: 'hsl(var(--surface-1))', borderRadius: 12, border: `1px solid hsl(var(--border))`, borderTop: `3px solid ${TXT[tone]}`, overflow: 'hidden', ...style }}>
       {(eyebrow || title || actions) && (
-        <div style={{ padding: '14px 18px 10px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8, borderBottom: '1px solid #f3f4f6' }}>
+        <div style={{ padding: '14px 18px 10px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8, borderBottom: '1px solid hsl(var(--border))' }}>
           <div>
             {eyebrow && <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', color: TXT[tone], marginBottom: 2 }}>{eyebrow}</div>}
-            {title   && <div style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>{title}</div>}
+            {title   && <div style={{ fontSize: 15, fontWeight: 700, color: 'hsl(var(--foreground))' }}>{title}</div>}
           </div>
           {actions && <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>{actions}</div>}
         </div>
@@ -100,7 +100,7 @@ function SectionLabel({ tone, children }: { tone: Tone; children: React.ReactNod
 }
 
 function TrendChart({ data }: { data: any[] }) {
-  if (!data.length) return <div style={{ height: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af', fontSize: 11 }}>No data</div>
+  if (!data.length) return <div style={{ height: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'hsl(var(--muted-foreground))', fontSize: 11 }}>No data</div>
   const max = Math.max(...data.map(d => num(d.failed)), 1)
   return (
     <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 60 }}>
@@ -110,10 +110,10 @@ function TrendChart({ data }: { data: any[] }) {
         const isHigh = num(d.failed) > max * 0.7
         return (
           <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-            <div style={{ width: '100%', height: h, background: isHigh ? '#ef4444' : '#fca5a5', borderRadius: '2px 2px 0 0', transition: 'height 0.4s ease' }}
+            <div style={{ width: '100%', height: h, background: isHigh ? 'hsl(var(--coral-text))' : 'hsl(var(--coral-border))', borderRadius: '2px 2px 0 0', transition: 'height 0.4s ease' }}
               title={`${label} — ${fmt(d.failed)} failed`} />
             {(i % Math.ceil(data.length / 8) === 0) &&
-              <span style={{ fontSize: 7.5, color: '#9ca3af', fontFamily: 'monospace' }}>{label}</span>}
+              <span style={{ fontSize: 7.5, color: 'hsl(var(--muted-foreground))', fontFamily: 'monospace' }}>{label}</span>}
           </div>
         )
       })}
@@ -128,40 +128,40 @@ function DrillPanel({ code, affected }: {
   const tone: Tone = code ? severityTone(code.severity) : 'coral'
   return (
     <div style={{
-      background: code ? BG[tone] : '#f9fafb',
-      border: `1px solid ${code ? BDR[tone] : '#e5e7eb'}`,
-      borderTop: `3px solid ${code ? TXT[tone] : '#e5e7eb'}`,
+      background: code ? BG[tone] : 'hsl(var(--surface-2))',
+      border: `1px solid ${code ? BDR[tone] : 'hsl(var(--border))'}`,
+      borderTop: `3px solid ${code ? TXT[tone] : 'hsl(var(--border))'}`,
       borderRadius: 12, padding: 18, minHeight: 200,
     }}>
-      <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', color: code ? TXT[tone] : '#9ca3af', marginBottom: 6 }}>
+      <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', color: code ? TXT[tone] : 'hsl(var(--muted-foreground))', marginBottom: 6 }}>
         {code ? `Drill · ${code.dlr_code}` : 'Select an error code'}
       </div>
       {code ? (
         <>
-          <div style={{ fontSize: 15, fontWeight: 700, color: '#111827', marginBottom: 3 }}>{code.name}</div>
-          <div style={{ fontSize: 11, fontFamily: 'monospace', color: '#6b7280', marginBottom: 14 }}>{code.validator}</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: 'hsl(var(--foreground))', marginBottom: 3 }}>{code.name}</div>
+          <div style={{ fontSize: 11, fontFamily: 'monospace', color: 'hsl(var(--muted-foreground))', marginBottom: 14 }}>{code.validator}</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
-            {[['Count', fmt(code.cnt), '#111827'], ['Share', pct(code.pct), TXT[tone]]].map(([lbl, val, col]) => (
+            {[['Count', fmt(code.cnt), 'hsl(var(--surface-1))'], ['Share', pct(code.pct), TXT[tone]]].map(([lbl, val, col]) => (
               <div key={lbl} style={{ background: 'rgba(255,255,255,0.7)', padding: '10px 12px', borderRadius: 8 }}>
-                <div style={{ fontSize: 9.5, fontFamily: 'monospace', textTransform: 'uppercase', color: '#9ca3af', marginBottom: 4 }}>{lbl}</div>
+                <div style={{ fontSize: 9.5, fontFamily: 'monospace', textTransform: 'uppercase', color: 'hsl(var(--muted-foreground))', marginBottom: 4 }}>{lbl}</div>
                 <div style={{ fontSize: 20, fontWeight: 700, color: col as string }}>{val}</div>
               </div>
             ))}
           </div>
           {affected.length > 0 && (
             <>
-              <div style={{ fontSize: 9.5, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af', marginBottom: 8 }}>Top affected senders</div>
+              <div style={{ fontSize: 9.5, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'hsl(var(--muted-foreground))', marginBottom: 8 }}>Top affected senders</div>
               {affected.map((s, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid rgba(0,0,0,0.06)', fontSize: 12.5 }}>
-                  <span style={{ fontFamily: 'monospace', color: '#374151' }}>{s.sender_id}</span>
-                  <span style={{ fontFamily: 'monospace', color: '#9ca3af' }}>{fmt(s.cnt)}</span>
+                  <span style={{ fontFamily: 'monospace', color: 'hsl(var(--foreground))' }}>{s.sender_id}</span>
+                  <span style={{ fontFamily: 'monospace', color: 'hsl(var(--muted-foreground))' }}>{fmt(s.cnt)}</span>
                 </div>
               ))}
             </>
           )}
         </>
       ) : (
-        <div style={{ fontSize: 12, color: '#9ca3af', paddingTop: 24, textAlign: 'center', fontFamily: 'monospace' }}>Click an error code to inspect</div>
+        <div style={{ fontSize: 12, color: 'hsl(var(--muted-foreground))', paddingTop: 24, textAlign: 'center', fontFamily: 'monospace' }}>Click an error code to inspect</div>
       )}
     </div>
   )
@@ -214,7 +214,7 @@ export default function FailuresPage() {
   const senderList = data?.senderList  ?? []
   const affected   = selected ? (data?.affectedBySender?.[selected.dlr_code] ?? []) : []
 
-  const C = { bg: '#f9fafb', card: '#ffffff', border: '#e5e7eb', text: '#111827', muted: '#6b7280' }
+  const C = { bg: 'hsl(var(--surface-2))', card: 'hsl(var(--surface-1))', border: 'hsl(var(--border))', text: 'hsl(var(--foreground))', muted: 'hsl(var(--muted-foreground))' }
 
   return (
     <div style={{ fontFamily: 'Inter,system-ui,sans-serif', fontSize: 13, color: C.text }}>
@@ -227,12 +227,12 @@ export default function FailuresPage() {
             <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0, lineHeight: 1.2 }}>Failure Analysis</h1>
             <div style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>Error codes, root causes &amp; impact · time range controlled from the top bar</div>
           </div>
-          {loading && <span style={{ fontSize: 11, fontFamily: 'monospace', color: '#9ca3af' }}>Loading…</span>}
+          {loading && <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'hsl(var(--muted-foreground))' }}>Loading…</span>}
         </div>
       </div>
 
       {error && (
-        <div style={{ padding: '10px 14px', marginBottom: 12, borderRadius: 8, fontSize: 12, background: '#fef2f2', border: '1px solid #fca5a5', color: '#dc2626' }}>
+        <div style={{ padding: '10px 14px', marginBottom: 12, borderRadius: 8, fontSize: 12, background: 'hsl(var(--coral-bg))', border: '1px solid #fca5a5', color: 'hsl(var(--coral-text))' }}>
           ⚠ {error}
         </div>
       )}
@@ -241,12 +241,12 @@ export default function FailuresPage() {
       <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, padding: '10px 16px', marginBottom: 16, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
         <span style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', color: C.muted }}>Filter</span>
         <select value={filterSender} onChange={e => setFilterSender(e.target.value)}
-          style={{ fontSize: 11.5, padding: '5px 10px', borderRadius: 6, border: `1px solid ${C.border}`, background: '#f9fafb', fontFamily: 'monospace', cursor: 'pointer', minWidth: 160 }}>
+          style={{ fontSize: 11.5, padding: '5px 10px', borderRadius: 6, border: `1px solid ${C.border}`, background: 'hsl(var(--surface-2))', fontFamily: 'monospace', cursor: 'pointer', minWidth: 160 }}>
           <option value=''>All senders</option>
           {senderList.map((s: string) => <option key={s} value={s}>{s}</option>)}
         </select>
         <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
-          style={{ fontSize: 11.5, padding: '5px 10px', borderRadius: 6, border: `1px solid ${C.border}`, background: '#f9fafb', fontFamily: 'monospace', cursor: 'pointer', minWidth: 160 }}>
+          style={{ fontSize: 11.5, padding: '5px 10px', borderRadius: 6, border: `1px solid ${C.border}`, background: 'hsl(var(--surface-2))', fontFamily: 'monospace', cursor: 'pointer', minWidth: 160 }}>
           <option value=''>All validators</option>
           {categories.map((c: any) => <option key={c.validator} value={c.validator}>{c.validator}</option>)}
         </select>
@@ -318,7 +318,7 @@ export default function FailuresPage() {
                   <span style={{ fontSize: 11, fontFamily: 'monospace', fontWeight: 700, background: BG[t], color: TXT[t], padding: '3px 6px', borderRadius: 5, textAlign: 'center' }}>{e.dlr_code}</span>
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 3 }}>{e.name}</div>
-                    <div style={{ height: 3, background: '#f3f4f6', borderRadius: 2, overflow: 'hidden' }}>
+                    <div style={{ height: 3, background: 'hsl(var(--muted))', borderRadius: 2, overflow: 'hidden' }}>
                       <div style={{ width: `${Math.min(num(e.pct) * 2.5, 100)}%`, height: '100%', background: TXT[t], borderRadius: 2 }} />
                     </div>
                   </div>
@@ -423,19 +423,19 @@ export default function FailuresPage() {
               {traceLog.map((row: any, i: number) => {
                 const t: Tone = validatorTone(row.validator)
                 return (
-                  <tr key={i} style={{ borderTop: '1px solid #f3f4f6' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = '#f9fafb')}
+                  <tr key={i} style={{ borderTop: '1px solid hsl(var(--border))' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'hsl(var(--surface-2))')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                     <td style={{ padding: '8px 10px 8px 0', fontFamily: 'monospace', color: C.muted, whiteSpace: 'nowrap' }}>{ts(row.timestamp)}</td>
                     <td style={{ padding: '8px 10px 8px 0', fontWeight: 600 }}>{row.sender_id || '—'}</td>
                     <td style={{ padding: '8px 10px 8px 0', fontFamily: 'monospace', color: C.muted, fontSize: 11 }}>{row.pe_id || '—'}</td>
                     <td style={{ padding: '8px 10px 8px 0', fontFamily: 'monospace', color: C.muted, fontSize: 11 }}>{row.originator_ip || '—'}</td>
-                    <td style={{ padding: '8px 10px 8px 0', fontFamily: 'monospace', fontSize: 11, color: '#6b7280' }}>{row.validation_step || '—'}</td>
+                    <td style={{ padding: '8px 10px 8px 0', fontFamily: 'monospace', fontSize: 11, color: 'hsl(var(--muted-foreground))' }}>{row.validation_step || '—'}</td>
                     <td style={{ padding: '8px 10px 8px 0' }}>
                       <span style={{ fontSize: 10, fontFamily: 'monospace', fontWeight: 700, background: BG[t], color: TXT[t], padding: '2px 7px', borderRadius: 4 }}>{row.dlr_code}</span>
                     </td>
                     <td style={{ padding: '8px 10px 8px 0', color: C.muted, fontFamily: 'monospace', fontSize: 11 }}>{row.validator || '—'}</td>
-                    <td style={{ padding: '8px 0 8px 0', color: '#374151', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.description || '—'}</td>
+                    <td style={{ padding: '8px 0 8px 0', color: 'hsl(var(--foreground))', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.description || '—'}</td>
                   </tr>
                 )
               })}

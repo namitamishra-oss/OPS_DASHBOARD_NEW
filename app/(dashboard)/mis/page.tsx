@@ -1,49 +1,47 @@
 'use client'
 // app/(dashboard)/mis/page.tsx
-import React, { useEffect, useState, useCallback } from 'react'
-import { useDashboardControls } from '@/components/Topbar'
-// no external icon deps
-// Inline SVG — no lucide-react needed
-const IconDownload = ({ size = 12 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-    <polyline points="7 10 12 15 17 10"/>
-    <line x1="12" y1="15" x2="12" y2="3"/>
-  </svg>
-)
+import React, { useState, useCallback, useRef } from 'react'
 
+// ── Palette ────────────────────────────────────────────────────────────────────
+const T = {
+  teal:   { bg: 'hsl(var(--teal-bg))',   text: 'hsl(var(--teal-text))',   border: 'hsl(var(--teal-border))'   },
+  coral:  { bg: 'hsl(var(--coral-bg))',  text: 'hsl(var(--coral-text))',  border: 'hsl(var(--coral-border))'  },
+  amber:  { bg: 'hsl(var(--amber-bg))',  text: 'hsl(var(--amber-text))',  border: 'hsl(var(--amber-border))'  },
+  purple: { bg: 'hsl(var(--purple-bg))', text: 'hsl(var(--purple-text))', border: 'hsl(var(--purple-border))' },
+}
+type Tone = keyof typeof T
+const fmt = (n: number | string) => Number(n).toLocaleString('en-IN')
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
-const fmt = (n: number) => Number(n).toLocaleString('en-IN')
-
-const TONES: Record<string, { bg: string; text: string; border: string }> = {
-  teal:   { bg: 'rgba(32,178,170,0.12)',  text: '#20B2AA', border: 'rgba(32,178,170,0.3)'  },
-  coral:  { bg: 'rgba(255,127,80,0.12)',  text: '#FF7F50', border: 'rgba(255,127,80,0.3)'  },
-  amber:  { bg: 'rgba(255,191,0,0.12)',   text: '#FFBF00', border: 'rgba(255,191,0,0.3)'   },
-  purple: { bg: 'rgba(147,112,219,0.12)', text: '#9370DB', border: 'rgba(147,112,219,0.3)' },
+// ── Normalize datetime for ClickHouse ──────────────────────────────────────────
+function normDt(dt: string): string {
+  if (!dt) return dt
+  // Date-only input gives "YYYY-MM-DD" (10 chars)
+  if (dt.length === 10) return dt + ' 00:00:00'
+  // datetime-local gives "YYYY-MM-DDTHH:MM" (16 chars)
+  const s = dt.replace('T', ' ')
+  return s.length === 16 ? s + ':00' : s
 }
 
-function Kpi({ label, value, delta, tone = 'teal' }: { label: string; value: string | number; delta?: string; tone?: string }) {
-  const t = TONES[tone] ?? TONES.teal
+// ── Sub-components ─────────────────────────────────────────────────────────────
+function Kpi({ label, value, sub, tone = 'teal' }: { label: string; value: string | number; sub?: string; tone?: Tone }) {
+  const c = T[tone]
   return (
-    <div style={{ background: t.bg, border: `1px solid ${t.border}`, borderRadius: 12, padding: '16px 18px' }}>
-      <div style={{ fontSize: 11, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.14em', color: t.text, marginBottom: 6 }}>{label}</div>
-      <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--foreground, #e2e8f0)', lineHeight: 1.1 }}>{value}</div>
-      {delta && <div style={{ fontSize: 11, color: 'var(--muted-foreground, #94a3b8)', marginTop: 4, fontFamily: 'monospace' }}>{delta}</div>}
+    <div style={{ background: c.bg, border: `1px solid ${c.border}`, borderRadius: 12, padding: '14px 16px' }}>
+      <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', color: c.text, marginBottom: 5 }}>{label}</div>
+      <div style={{ fontSize: 22, fontWeight: 700, color: 'hsl(var(--foreground))', lineHeight: 1.1 }}>{value}</div>
+      {sub && <div style={{ fontSize: 11, color: 'hsl(var(--muted-foreground))', marginTop: 3, fontFamily: 'monospace' }}>{sub}</div>}
     </div>
   )
 }
 
-function Panel({ children, tone = 'teal', eyebrow, actions, className }: {
-  children: React.ReactNode; tone?: string; eyebrow?: string; actions?: React.ReactNode; className?: string
-}) {
-  const t = TONES[tone] ?? TONES.teal
+function Card({ children, tone = 'teal', label, action }: { children: React.ReactNode; tone?: Tone; label?: string; action?: React.ReactNode }) {
+  const c = T[tone]
   return (
-    <div className={className} style={{ background: 'var(--card, #1e293b)', border: `1px solid ${t.border}`, borderRadius: 14, padding: 20 }}>
-      {(eyebrow || actions) && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          {eyebrow && <span style={{ fontSize: 10.5, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.18em', color: 'var(--muted-foreground, #94a3b8)' }}>{eyebrow}</span>}
-          {actions && <div style={{ display: 'flex', gap: 6 }}>{actions}</div>}
+    <div style={{ background: 'hsl(var(--surface-1))', border: `1px solid ${c.border}`, borderRadius: 14, padding: '16px 18px' }}>
+      {(label || action) && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 6 }}>
+          {label && <span style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.18em', color: 'hsl(var(--muted-foreground))' }}>{label}</span>}
+          {action}
         </div>
       )}
       {children}
@@ -51,224 +49,449 @@ function Panel({ children, tone = 'teal', eyebrow, actions, className }: {
   )
 }
 
-function Bar({ pct, tone = 'teal', height = 5 }: { pct: number; tone?: string; height?: number }) {
-  const t = TONES[tone] ?? TONES.teal
-  return (
-    <div style={{ background: 'var(--muted, #334155)', borderRadius: 999, overflow: 'hidden', height }}>
-      <div style={{ height: '100%', width: `${Math.min(100, Math.max(0, pct))}%`, background: t.text, borderRadius: 999, transition: 'width 0.4s ease' }} />
-    </div>
-  )
+// ── Input style ────────────────────────────────────────────────────────────────
+const inputStyle: React.CSSProperties = {
+  background: 'hsl(var(--input-bg))',
+  border: '1.5px solid hsl(var(--input-border))',
+  borderRadius: 8,
+  padding: '8px 12px',
+  fontSize: 13,
+  color: 'hsl(var(--input-text))',
+  outline: 'none',
+  fontFamily: 'inherit',
+  width: '100%',
+  transition: 'border-color 0.15s, box-shadow 0.15s',
 }
 
-function Field({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: string[] }) {
-  return (
-    <div>
-      <label style={{ display: 'block', fontSize: 10.5, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.18em', color: 'var(--muted-foreground, #94a3b8)', marginBottom: 6 }}>
-        {label}
-      </label>
-      <select value={value} onChange={(e) => onChange(e.target.value)}
-        style={{ width: '100%', background: 'var(--secondary, #1e293b)', border: '1px solid var(--border, #334155)', borderRadius: 8, padding: '8px 12px', fontSize: 12, fontFamily: 'monospace', color: 'var(--foreground, #e2e8f0)' }}>
-        {options.map((o) => <option key={o}>{o}</option>)}
-      </select>
-    </div>
-  )
-}
+const TRAFFIC_OPTS = [
+  { id: 'all',           label: 'All Traffic'   },
+  { id: 'domestic',      label: '🏠 Domestic'   },
+  { id: 'international', label: '✈️ International' },
+]
 
-const DIM_OPTIONS = ['sender', 'pe_id', 'ip', 'error_code', 'step']
-const DIM_LABELS  = { sender: 'Sender', pe_id: 'PEID', ip: 'Source IP', error_code: 'Error code', step: 'Validation step' }
-const GRAN_OPTIONS = ['hourly', 'daily', 'weekly', 'monthly']
+const QUICK_RANGES = [
+  { label: '1H',  hours: 1  },
+  { label: '6H',  hours: 6  },
+  { label: '24H', hours: 24 },
+  { label: '48H', hours: 48 },
+  { label: '7D',  days:  7  },
+  { label: '30D', days:  30 },
+]
 
-// ── Main Component ─────────────────────────────────────────────────────────────
+const DIM_OPTS = [
+  { value: 'sender',     label: 'Sender ID'       },
+  { value: 'pe_id',      label: 'PE ID'           },
+  { value: 'ip',         label: 'Source IP'       },
+  { value: 'error_code', label: 'Error Code'      },
+  { value: 'step',       label: 'Validation Step' },
+]
+
+const GRAN_OPTS = [
+  { value: 'hourly',  label: 'Hourly'  },
+  { value: 'daily',   label: 'Daily'   },
+  { value: 'weekly',  label: 'Weekly'  },
+  { value: 'monthly', label: 'Monthly' },
+]
+
+// ── Main ───────────────────────────────────────────────────────────────────────
 export default function MIS() {
-  const { hours, days, from, to } = useDashboardControls()
-  const [dim, setDim]           = useState('sender')
-  const [gran, setGran]         = useState('daily')
-  const [traffic, setTraffic]   = useState('All')
-  const [data, setData]         = useState<any>(null)
-  const [loading, setLoading]   = useState(false)
-  const [error, setError]       = useState('')
-  const [generated, setGenerated] = useState(false)
+  // Search / filter state (what user is typing)
+  const [searchInput, setSearchInput] = useState('')
+  const [dim,         setDim]         = useState('sender')
+  const [gran,        setGran]        = useState('daily')
+  const [traffic,     setTraffic]     = useState('all')
+  const [fromDt,      setFromDt]      = useState('')
+  const [toDt,        setToDt]        = useState('')
+  const [activeRange, setActiveRange] = useState('24H')
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError('')
-    setGenerated(true)
+  // Applied state (committed on Apply click)
+  const [applied, setApplied] = useState({
+    search: '', dim: 'sender', gran: 'daily', traffic: 'all',
+    from: '', to: '', hours: 24, days: 0,
+  })
+
+  // Data state
+  const [data,    setData]    = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState('')
+
+  // ── Fetch ──────────────────────────────────────────────────────────────────
+  const load = useCallback(async (params: typeof applied) => {
+    setLoading(true); setError('')
     try {
-      const params = new URLSearchParams({ dim, gran })
-      if (from && to) { params.set('from', from); params.set('to', to) }
-      else if (days > 0) params.set('days', String(days))
-      else params.set('hours', String(hours))
-      const res = await fetch(`/api/mis?${params}`)
+      const p = new URLSearchParams({ dim: params.dim, gran: params.gran })
+      if (params.from && params.to) {
+        // Date-only inputs: from = start of day, to = end of day
+        p.set('from', params.from.length === 10 ? params.from + ' 00:00:00' : normDt(params.from))
+        p.set('to',   params.to.length   === 10 ? params.to   + ' 23:59:59' : normDt(params.to))
+      } else if (params.days > 0) {
+        p.set('days', String(params.days))
+      } else {
+        p.set('hours', String(params.hours || 24))
+      }
+      if (params.traffic !== 'all') p.set('traffic', params.traffic)
+      if (params.search)            p.set('search',  params.search)
+      const res = await fetch(`/api/mis?${p}`)
       if (!res.ok) throw new Error(await res.text())
       setData(await res.json())
-    } catch (e: any) {
-      setError(e.message)
-    } finally {
-      setLoading(false)
+    } catch (e: any) { setError(e.message) }
+    finally { setLoading(false) }
+  }, [])
+
+  // ── Apply ──────────────────────────────────────────────────────────────────
+  const handleApply = () => {
+    // Determine time range from UI state
+    let hours = 24, days = 0, from = '', to = ''
+    if (fromDt && toDt) {
+      from = fromDt; to = toDt
+    } else {
+      const quick = QUICK_RANGES.find(r => r.label === activeRange)
+      if (quick) { hours = (quick as any).hours ?? 0; days = (quick as any).days ?? 0 }
     }
-  }, [hours, days, from, to, dim, gran])
+    const next = { search: searchInput, dim, gran, traffic, from, to, hours, days }
+    setApplied(next)
+    load(next)
+  }
 
-  // Auto-load on mount
-  useEffect(() => { load() }, [load])
+  // ── Quick range click ─────────────────────────────────────────────────────
+  const applyQuick = (r: typeof QUICK_RANGES[0]) => {
+    // Toggle off if already active
+    if (activeRange === r.label && !fromDt && !toDt) {
+      setActiveRange('')
+      return
+    }
+    setActiveRange(r.label)
+    setFromDt(''); setToDt('')
+    const next = { ...applied, search: searchInput, dim, gran, traffic, from: '', to: '', hours: (r as any).hours ?? 0, days: (r as any).days ?? 0 }
+    setApplied(next); load(next)
+  }
 
-  const kpis       = data?.kpis       ?? {}
-  const rows       = data?.rows       ?? []
-  const errorDist  = data?.errorDist  ?? []
-  const senderBlock = data?.senderBlock ?? []
-  const maxBlock   = Math.max(...senderBlock.map((s: any) => Number(s.blockPct)), 1)
-
+  // ── Exports ────────────────────────────────────────────────────────────────
   const exportCSV = () => {
-    const headers = ['Dimension', 'Date', 'Submitted', 'Passed', 'Blocked', 'Pass%', 'Top Error']
-    const csvRows = rows.map((r: any) =>
-      [r.dimension, r.date, r.submitted, r.passed, r.blocked, r.passPct, r.topErr].join(',')
-    )
-    const blob = new Blob([[headers.join(','), ...csvRows].join('\n')], { type: 'text/csv' })
-    const url  = URL.createObjectURL(blob)
-    const a    = Object.assign(document.createElement('a'), { href: url, download: 'mis_report.csv' })
-    a.click()
-    URL.revokeObjectURL(url)
+    const rows    = data?.rows ?? []
+    const dimLbl  = DIM_OPTS.find(d => d.value === applied.dim)?.label ?? 'Dimension'
+    const headers = [dimLbl, 'Date', 'Submitted', 'Passed', 'Blocked', 'Pass%', 'Top Error']
+    const body    = rows.map((r: any) => [r.dimension, r.date, r.submitted, r.passed, r.blocked, r.passPct, r.topErr].join(','))
+    const blob    = new Blob([[headers.join(','), ...body].join('\n')], { type: 'text/csv' })
+    Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'mis_report.csv' }).click()
+  }
+
+  // ── Derived ────────────────────────────────────────────────────────────────
+  const kpis        = data?.kpis        ?? {}
+  const rows        = data?.rows        ?? []
+  const errorDist   = data?.errorDist   ?? []
+  const senderBlock = data?.senderBlock ?? []
+  const pct = (a: number, b: number) => b > 0 ? `${((a / b) * 100).toFixed(1)}%` : '—'
+
+  const dimLabel   = DIM_OPTS.find(d => d.value === applied.dim)?.label ?? 'Dimension'
+  const granLabel  = GRAN_OPTS.find(g => g.value === applied.gran)?.label ?? 'Daily'
+
+  // Active filter chips
+  const chips = [
+    applied.search  && { label: `search: ${applied.search}`,   tone: 'teal'   as Tone },
+    applied.traffic !== 'all' && { label: applied.traffic,     tone: 'purple' as Tone },
+    (applied.from && applied.to) && { label: `${applied.from.slice(5,16)} → ${applied.to.slice(5,16)}`, tone: 'amber' as Tone },
+  ].filter(Boolean) as { label: string; tone: Tone }[]
+
+  const btnStyle = (active: boolean): React.CSSProperties => ({
+    padding: '5px 11px', fontSize: 12, borderRadius: 7, border: 'none', cursor: 'pointer',
+    fontFamily: 'monospace', fontWeight: active ? 700 : 400, transition: 'all 0.15s',
+    background: active ? 'hsl(var(--primary))' : 'hsl(var(--accent))',
+    color:      active ? 'hsl(var(--primary-foreground))' : 'hsl(var(--muted-foreground))',
+  })
+
+  const focusStyle = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => {
+    e.currentTarget.style.borderColor = 'hsl(var(--primary))'
+    e.currentTarget.style.boxShadow   = '0 0 0 3px hsl(var(--primary) / 0.15)'
+  }
+  const blurStyle = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => {
+    e.currentTarget.style.borderColor = 'hsl(var(--input-border))'
+    e.currentTarget.style.boxShadow   = 'none'
   }
 
   return (
-    <div style={{ maxWidth: 1600, margin: '0 auto' }}>
-      {/* Header */}
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 11, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.18em', color: '#20B2AA', marginBottom: 6 }}>GoFlipo Reporting</div>
-        <h1 style={{ fontSize: 28, fontWeight: 700, color: 'var(--foreground, #e2e8f0)', margin: 0 }}>MIS Reports</h1>
-        <p style={{ fontSize: 13, color: 'var(--muted-foreground, #94a3b8)', marginTop: 6 }}>
-          Cross-dimension reports — sender, PEID, error code, source IP, validation step
+    <div style={{ maxWidth: 1600, margin: '0 auto', paddingBottom: 32 }}>
+
+      {/* ── Header ──────────────────────────────────────────────────────── */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 10.5, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: 'hsl(var(--teal-text))', marginBottom: 5 }}>
+          GoFlipo · Reporting
+        </div>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: 'hsl(var(--foreground))', margin: 0 }}>MIS Reports</h1>
+        <p style={{ fontSize: 13, color: 'hsl(var(--muted-foreground))', marginTop: 6 }}>
+          Search and filter submissions by sender, PE ID, error code, or IP — across any date range.
         </p>
       </div>
 
-      {/* Config panel */}
-      <Panel tone="teal" eyebrow="Report configuration" className="mb-6" style={{ marginBottom: 20 } as any}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-          <Field label="Dimension"   value={dim}     onChange={setDim}     options={DIM_OPTIONS} />
-          <Field label="Granularity" value={gran}    onChange={setGran}    options={GRAN_OPTIONS} />
-          <Field label="Traffic"     value={traffic} onChange={setTraffic} options={['All', 'Domestic', 'International']} />
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
-          <button onClick={load} style={{ padding: '8px 20px', fontSize: 12, background: '#20B2AA', color: '#000', border: 'none', borderRadius: 8, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', cursor: 'pointer', fontWeight: 600 }}>
-            {loading ? 'Loading…' : 'Generate report'}
-          </button>
-        </div>
-      </Panel>
+      {/* ── Search & Filter panel ────────────────────────────────────────── */}
+      <Card tone="teal" label="Search · filters · date range">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
+          {/* Row 1: Main search + Group by + Granularity */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 180px 160px', gap: 10 }}>
+            {/* Universal search */}
+            <div>
+              <label style={{ display: 'block', fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'hsl(var(--muted-foreground))', marginBottom: 5 }}>
+                Search · sender / PE ID / source IP / authcode / error
+              </label>
+              <div style={{ position: 'relative' }}>
+                <div style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'hsl(var(--muted-foreground))', pointerEvents: 'none', fontSize: 14 }}>🔍</div>
+                <input
+                  value={searchInput}
+                  onChange={e => setSearchInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleApply()}
+                  placeholder="e.g. Parimatch · 2026012016513482330 · 0.0.0.0 · 907"
+                  style={{ ...inputStyle, paddingLeft: 34 }}
+                  onFocus={focusStyle} onBlur={blurStyle}
+                />
+              </div>
+            </div>
+
+            {/* Group by dimension */}
+            <div>
+              <label style={{ display: 'block', fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'hsl(var(--muted-foreground))', marginBottom: 5 }}>
+                Group by
+              </label>
+              <select value={dim} onChange={e => setDim(e.target.value)} style={inputStyle} onFocus={focusStyle} onBlur={blurStyle}>
+                {DIM_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+
+            {/* Granularity */}
+            <div>
+              <label style={{ display: 'block', fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'hsl(var(--muted-foreground))', marginBottom: 5 }}>
+                Granularity
+              </label>
+              <select value={gran} onChange={e => setGran(e.target.value)} style={inputStyle} onFocus={focusStyle} onBlur={blurStyle}>
+                {GRAN_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {/* Row 2: Quick ranges + Custom date + Traffic */}
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, flexWrap: 'wrap' }}>
+
+            {/* Quick time ranges */}
+            <div>
+              <label style={{ display: 'block', fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'hsl(var(--muted-foreground))', marginBottom: 6 }}>
+                Quick range
+              </label>
+              <div style={{ display: 'flex', gap: 4 }}>
+                {QUICK_RANGES.map(r => (
+                  <button key={r.label} onClick={() => applyQuick(r)} style={btnStyle(activeRange === r.label && !fromDt && !toDt)}>
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div style={{ width: 1, height: 36, background: 'hsl(var(--border))', flexShrink: 0 }} />
+
+            {/* Custom from */}
+            <div style={{ minWidth: 170 }}>
+              <label style={{ display: 'block', fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'hsl(var(--muted-foreground))', marginBottom: 5 }}>
+                From
+              </label>
+              <input
+                type="date"
+                value={fromDt}
+                onChange={e => { setFromDt(e.target.value); setActiveRange('') }}
+                style={{ ...inputStyle, fontSize: 12 }}
+                onFocus={focusStyle} onBlur={blurStyle}
+              />
+            </div>
+
+            {/* Custom to */}
+            <div style={{ minWidth: 170 }}>
+              <label style={{ display: 'block', fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'hsl(var(--muted-foreground))', marginBottom: 5 }}>
+                To
+              </label>
+              <input
+                type="date"
+                value={toDt}
+                onChange={e => { setToDt(e.target.value); setActiveRange('') }}
+                style={{ ...inputStyle, fontSize: 12 }}
+                onFocus={focusStyle} onBlur={blurStyle}
+              />
+            </div>
+
+            {/* Divider */}
+            <div style={{ width: 1, height: 36, background: 'hsl(var(--border))', flexShrink: 0 }} />
+
+            {/* Traffic */}
+            <div>
+              <label style={{ display: 'block', fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'hsl(var(--muted-foreground))', marginBottom: 6 }}>
+                Traffic
+              </label>
+              <div style={{ display: 'flex', gap: 4 }}>
+                {TRAFFIC_OPTS.map(o => (
+                  <button key={o.id} onClick={() => setTraffic(o.id)} style={btnStyle(traffic === o.id)}>
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Spacer */}
+            <div style={{ flex: 1 }} />
+
+            {/* Apply button */}
+            <button onClick={handleApply}
+              style={{ padding: '9px 28px', background: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))', border: 'none', borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em', transition: 'opacity 0.15s', flexShrink: 0 }}>
+              Apply →
+            </button>
+          </div>
+
+          {/* Active filter chips */}
+          {chips.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, paddingTop: 6, borderTop: '1px solid hsl(var(--border))' }}>
+              {chips.map(ch => {
+                const c = T[ch.tone]
+                return (
+                  <span key={ch.label} style={{ background: c.bg, color: c.text, border: `1px solid ${c.border}`, fontFamily: 'monospace', fontSize: 11, padding: '2px 10px', borderRadius: 99 }}>
+                    {ch.label}
+                  </span>
+                )
+              })}
+              <button onClick={() => {
+                setSearchInput(''); setFromDt(''); setToDt(''); setTraffic('all'); setActiveRange('24H')
+                const reset = { search: '', dim, gran, traffic: 'all', from: '', to: '', hours: 24, days: 0 }
+                setApplied(reset); load(reset)
+              }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: 'hsl(var(--muted-foreground))', padding: '2px 8px', fontFamily: 'monospace' }}>
+                ✕ clear
+              </button>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* ── Status ─────────────────────────────────────────────────────────── */}
       {error && (
-        <div style={{ background: 'rgba(255,127,80,0.1)', border: '1px solid rgba(255,127,80,0.3)', borderRadius: 10, padding: 16, color: '#FF7F50', fontFamily: 'monospace', marginBottom: 20 }}>
-          {error}
+        <div style={{ background: T.coral.bg, border: `1px solid ${T.coral.border}`, borderRadius: 10, padding: 14, color: T.coral.text, fontFamily: 'monospace', fontSize: 12, marginTop: 14 }}>
+          ⚠ {error}
+        </div>
+      )}
+      {!data && !loading && (
+        <div style={{ textAlign: 'center', padding: 64, color: 'hsl(var(--muted-foreground))', fontFamily: 'monospace' }}>
+          Set your filters above and click <strong>Apply →</strong> to generate the report.
+        </div>
+      )}
+      {loading && (
+        <div style={{ textAlign: 'center', padding: 64, color: 'hsl(var(--muted-foreground))', fontFamily: 'monospace', marginTop: 16 }}>
+          Loading report…
         </div>
       )}
 
-      {data && (
+      {data && !loading && (
         <>
-          {/* KPI strip */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 20 }}>
-            <Kpi label="Total submitted"  tone="teal"   value={fmt(kpis.totalSubmitted ?? 0)}   delta="in window" />
-            <Kpi label="Passed"           tone="purple" value={fmt(kpis.totalPassed ?? 0)}
-              delta={kpis.totalSubmitted > 0 ? `${((kpis.totalPassed / kpis.totalSubmitted) * 100).toFixed(1)}%` : '—'} />
-            <Kpi label="Blocked"          tone="coral"  value={fmt(kpis.totalBlocked ?? 0)}
-              delta={kpis.totalSubmitted > 0 ? `${((kpis.totalBlocked / kpis.totalSubmitted) * 100).toFixed(1)}%` : '—'} />
-            <Kpi label="Distinct senders" tone="amber"  value={fmt(kpis.distinctSenders ?? 0)} />
-            <Kpi label="Top error"        tone="coral"  value={kpis.topError ?? '—'} delta="most frequent" />
+          {/* ── KPI strip ─────────────────────────────────────────────────── */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 10, marginTop: 16, marginBottom: 16 }}>
+            <Kpi label="Messages"   tone="teal"   value={fmt(kpis.messages ?? kpis.totalSubmitted ?? 0)} sub={`${fmt(kpis.segments ?? 0)} segments`} />
+            <Kpi label="Passed"     tone="purple" value={fmt(kpis.totalPassed ?? 0)} sub={pct(kpis.totalPassed ?? 0, kpis.segments ?? kpis.totalSubmitted ?? 0)} />
+            <Kpi label="Blocked"    tone="coral"  value={fmt(kpis.totalBlocked ?? 0)} sub={pct(kpis.totalBlocked ?? 0, kpis.segments ?? kpis.totalSubmitted ?? 0)} />
+            <Kpi label="Senders"    tone="amber"  value={fmt(kpis.distinctSenders ?? 0)} />
+            <Kpi label="Top error"  tone="coral"  value={kpis.topError ?? '—'} />
           </div>
 
-          {/* Main table + error dist */}
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, marginBottom: 20 }}>
-            <Panel tone="coral" eyebrow={`MIS · grouped by ${DIM_LABELS[dim as keyof typeof DIM_LABELS] ?? dim} · ${gran}`}
-              actions={
-                <>
-                  <button onClick={exportCSV}
-                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', background: 'var(--muted, #334155)', border: 'none', borderRadius: 6, fontSize: 11, fontFamily: 'monospace', color: 'var(--muted-foreground, #94a3b8)', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                    <IconDownload size={12} /> CSV
-                  </button>
-                </>
+          {/* ── Table + Error dist ─────────────────────────────────────────── */}
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 14, marginBottom: 16 }}>
+            <Card tone="coral" label={`${dimLabel} × ${granLabel}${applied.search ? ` · "${applied.search}"` : ''}`}
+              action={
+                <button onClick={exportCSV}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 12px', background: 'hsl(var(--accent))', border: '1px solid hsl(var(--border))', borderRadius: 7, fontSize: 11.5, fontFamily: 'monospace', color: 'hsl(var(--muted-foreground))', cursor: 'pointer' }}>
+                  ↓ Export CSV
+                </button>
               }>
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
                   <thead>
                     <tr>
-                      {[DIM_LABELS[dim as keyof typeof DIM_LABELS] ?? 'Dimension', 'Date', 'Submitted', 'Passed', 'Blocked', 'Pass %', 'Top error'].map((h) => (
-                        <th key={h} style={{ textAlign: 'left', fontFamily: 'monospace', fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '0.18em', color: 'var(--muted-foreground, #94a3b8)', paddingBottom: 10, paddingRight: 12, fontWeight: 500 }}>{h}</th>
+                      {[dimLabel, 'Date', 'Submitted', 'Passed', 'Blocked', 'Pass %', 'Top Error'].map(h => (
+                        <th key={h} style={{ textAlign: 'left', fontFamily: 'monospace', fontSize: 9.5, textTransform: 'uppercase', letterSpacing: '0.18em', color: 'hsl(var(--muted-foreground))', paddingBottom: 10, paddingRight: 14, fontWeight: 500, whiteSpace: 'nowrap' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {rows.length === 0 && (
-                      <tr><td colSpan={7} style={{ fontFamily: 'monospace', color: 'var(--muted-foreground, #94a3b8)', padding: '16px 0', fontSize: 12 }}>No data in window</td></tr>
+                      <tr><td colSpan={7} style={{ fontFamily: 'monospace', color: 'hsl(var(--muted-foreground))', padding: '20px 0', fontSize: 12 }}>
+                        No data for the current filters
+                      </td></tr>
                     )}
-                    {rows.slice(0, 100).map((r: any, i: number) => (
-                      <tr key={i} style={{ borderTop: '1px solid rgba(148,163,184,0.1)' }}>
-                        <td style={{ padding: '8px 12px 8px 0', fontWeight: 600, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.dimension}</td>
-                        <td style={{ padding: '8px 12px 8px 0', fontFamily: 'monospace', color: 'var(--muted-foreground, #94a3b8)' }}>{r.date}</td>
-                        <td style={{ padding: '8px 12px 8px 0', fontFamily: 'monospace' }}>{fmt(r.submitted)}</td>
-                        <td style={{ padding: '8px 12px 8px 0', fontFamily: 'monospace', color: '#9370DB' }}>{fmt(r.passed)}</td>
-                        <td style={{ padding: '8px 12px 8px 0', fontFamily: 'monospace', color: '#FF7F50' }}>{fmt(r.blocked)}</td>
-                        <td style={{ padding: '8px 12px 8px 0', fontFamily: 'monospace', color: r.passPct < 5 ? '#FF7F50' : '#9370DB', fontWeight: r.passPct < 5 ? 700 : 400 }}>
+                    {rows.slice(0, 200).map((r: any, i: number) => (
+                      <tr key={i} style={{ borderTop: '1px solid hsl(var(--border))' }}>
+                        <td style={{ padding: '8px 14px 8px 0', fontWeight: 600, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.dimension}>{r.dimension}</td>
+                        <td style={{ padding: '8px 14px 8px 0', fontFamily: 'monospace', fontSize: 11, color: 'hsl(var(--muted-foreground))' }}>{r.date}</td>
+                        <td style={{ padding: '8px 14px 8px 0', fontFamily: 'monospace' }}>{fmt(r.submitted)}</td>
+                        <td style={{ padding: '8px 14px 8px 0', fontFamily: 'monospace', color: T.purple.text }}>{fmt(r.passed)}</td>
+                        <td style={{ padding: '8px 14px 8px 0', fontFamily: 'monospace', color: T.coral.text }}>{fmt(r.blocked)}</td>
+                        <td style={{ padding: '8px 14px 8px 0', fontFamily: 'monospace', color: r.passPct < 5 ? T.coral.text : T.purple.text, fontWeight: r.passPct < 5 ? 700 : 400 }}>
                           {Number(r.passPct).toFixed(1)}%
                         </td>
-                        <td style={{ padding: '8px 12px 8px 0' }}>
-                          <span style={{ background: 'rgba(255,127,80,0.12)', color: '#FF7F50', fontFamily: 'monospace', fontSize: 11, padding: '2px 7px', borderRadius: 5 }}>
-                            {r.topErr}
-                          </span>
+                        <td style={{ padding: '8px 14px 8px 0' }}>
+                          <span style={{ background: T.coral.bg, color: T.coral.text, fontFamily: 'monospace', fontSize: 11, padding: '2px 7px', borderRadius: 5 }}>{r.topErr}</span>
                         </td>
                       </tr>
                     ))}
-                    {/* Totals row */}
+                    {/* Totals */}
                     {rows.length > 0 && (
-                      <tr style={{ borderTop: '2px solid rgba(148,163,184,0.2)', background: 'rgba(148,163,184,0.04)', fontWeight: 700 }}>
-                        <td colSpan={2} style={{ padding: '8px 12px 8px 0', fontFamily: 'monospace', fontSize: 11, textTransform: 'uppercase', color: 'var(--muted-foreground, #94a3b8)' }}>Totals</td>
-                        <td style={{ padding: '8px 12px 8px 0', fontFamily: 'monospace' }}>{fmt(kpis.totalSubmitted)}</td>
-                        <td style={{ padding: '8px 12px 8px 0', fontFamily: 'monospace', color: '#9370DB' }}>{fmt(kpis.totalPassed)}</td>
-                        <td style={{ padding: '8px 12px 8px 0', fontFamily: 'monospace', color: '#FF7F50' }}>{fmt(kpis.totalBlocked)}</td>
-                        <td style={{ padding: '8px 12px 8px 0', fontFamily: 'monospace' }}>
-                          {kpis.totalSubmitted > 0 ? ((kpis.totalPassed / kpis.totalSubmitted) * 100).toFixed(2) : '0.00'}%
+                      <tr style={{ borderTop: '2px solid hsl(var(--border))', fontWeight: 700, background: 'hsl(var(--accent))' }}>
+                        <td colSpan={2} style={{ padding: '9px 14px 9px 0', fontFamily: 'monospace', fontSize: 11, color: 'hsl(var(--muted-foreground))', textTransform: 'uppercase' }}>
+                          Totals ({rows.length} rows)
                         </td>
-                        <td style={{ padding: '8px 12px 8px 0' }}>
-                          <span style={{ background: 'rgba(255,127,80,0.12)', color: '#FF7F50', fontFamily: 'monospace', fontSize: 11, padding: '2px 7px', borderRadius: 5 }}>{kpis.topError}</span>
-                        </td>
+                        <td style={{ padding: '9px 14px 9px 0', fontFamily: 'monospace' }}>{fmt(kpis.totalSubmitted)}</td>
+                        <td style={{ padding: '9px 14px 9px 0', fontFamily: 'monospace', color: T.purple.text }}>{fmt(kpis.totalPassed)}</td>
+                        <td style={{ padding: '9px 14px 9px 0', fontFamily: 'monospace', color: T.coral.text }}>{fmt(kpis.totalBlocked)}</td>
+                        <td style={{ padding: '9px 14px 9px 0', fontFamily: 'monospace' }}>{pct(kpis.totalPassed ?? 0, kpis.totalSubmitted ?? 0)}</td>
+                        <td />
                       </tr>
                     )}
                   </tbody>
                 </table>
               </div>
-            </Panel>
+            </Card>
 
-            <Panel tone="purple" eyebrow="Error-code distribution">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                {errorDist.length === 0 && <div style={{ fontSize: 12, fontFamily: 'monospace', color: 'var(--muted-foreground, #94a3b8)' }}>No errors in window</div>}
-                {errorDist.map((e: any) => (
-                  <div key={e.code}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
+            <Card tone="purple" label="Error code distribution">
+              {errorDist.length === 0 && <div style={{ fontSize: 12, fontFamily: 'monospace', color: 'hsl(var(--muted-foreground))' }}>No errors in range</div>}
+              {errorDist.map((e: any) => {
+                const c = T[e.tone as Tone] ?? T.coral
+                return (
+                  <div key={e.code} style={{ marginBottom: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, marginBottom: 4 }}>
                       <span>
-                        <span style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--muted-foreground, #94a3b8)', marginRight: 6 }}>{e.code}</span>
-                        <span style={{ fontWeight: 600 }}>{e.count}</span>
+                        <span style={{ fontFamily: 'monospace', fontSize: 11, color: 'hsl(var(--muted-foreground))', marginRight: 6 }}>{e.code}</span>
+                        <span style={{ fontWeight: 600 }}>{fmt(e.count)}</span>
                       </span>
                       <span style={{ fontFamily: 'monospace' }}>{e.pct}%</span>
                     </div>
-                    <Bar pct={e.pct} tone={e.tone ?? 'coral'} height={4} />
+                    <div style={{ background: 'hsl(var(--muted))', borderRadius: 999, overflow: 'hidden', height: 4 }}>
+                      <div style={{ height: '100%', width: `${e.pct}%`, background: c.text, borderRadius: 999, transition: 'width 0.4s' }} />
+                    </div>
+                  </div>
+                )
+              })}
+            </Card>
+          </div>
+
+          {/* ── Sender block rate ──────────────────────────────────────────── */}
+          {senderBlock.length > 0 && (
+            <Card tone="amber" label="Sender block rate">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 24px' }}>
+                {senderBlock.map((s: any) => (
+                  <div key={s.sender} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ width: 120, fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={s.sender}>{s.sender}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ background: 'hsl(var(--muted))', borderRadius: 999, overflow: 'hidden', height: 4 }}>
+                        <div style={{ height: '100%', width: `${Math.min(100, s.blockPct)}%`, background: T.coral.text, borderRadius: 999 }} />
+                      </div>
+                    </div>
+                    <span style={{ width: 56, textAlign: 'right', fontFamily: 'monospace', fontSize: 11.5 }}>{fmt(s.total)}</span>
+                    <span style={{ width: 44, textAlign: 'right', fontFamily: 'monospace', fontSize: 11.5, color: T.coral.text }}>{s.blockPct}%</span>
                   </div>
                 ))}
               </div>
-            </Panel>
-          </div>
-
-          {/* Sender block rate */}
-          <Panel tone="amber" eyebrow="Sender block rate · all senders in window">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 24px' }}>
-              {senderBlock.length === 0 && <div style={{ fontSize: 12, fontFamily: 'monospace', color: 'var(--muted-foreground, #94a3b8)' }}>No sender data</div>}
-              {senderBlock.map((s: any) => (
-                <div key={s.sender} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ width: 120, fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.sender}</span>
-                  <div style={{ flex: 1 }}>
-                    <Bar pct={s.blockPct} tone="coral" height={4} />
-                  </div>
-                  <span style={{ width: 64, textAlign: 'right', fontFamily: 'monospace', fontSize: 11.5 }}>{fmt(s.total)}</span>
-                  <span style={{ width: 48, textAlign: 'right', fontFamily: 'monospace', fontSize: 11.5, color: '#FF7F50' }}>{s.blockPct}%</span>
-                </div>
-              ))}
-            </div>
-          </Panel>
+            </Card>
+          )}
         </>
       )}
     </div>

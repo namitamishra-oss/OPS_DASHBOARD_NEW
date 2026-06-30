@@ -2,12 +2,14 @@
 import { createClient } from '@clickhouse/client'
 
 const clickhouse = createClient({
-  url:      process.env.CLICKHOUSE_HOST || 'http://localhost:8123',  // "url" not "host"
+  url:      process.env.CLICKHOUSE_HOST || '/10.171.73.63:8123',  // "url" not "host"
   username: process.env.CLICKHOUSE_USER || 'default',
   password: process.env.CLICKHOUSE_PASSWORD || '',
   request_timeout: 30_000,
   compression: { response: true },
 })
+
+
 
 export async function testClickHouseConnection() {
   try {

@@ -1,65 +1,50 @@
 'use client'
-// app/(dashboard)/trace/page.tsx
+// app/(dashboard)/trace/page.tsx  — Trace + Scrubbing unified
 import React, { useEffect, useState, useCallback } from 'react'
 import { useDashboardControls } from '@/components/Topbar'
 
-// ── Inline SVG icons (no lucide-react dependency) ─────────────────────────────
-const IconHash       = ({ size = 16 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
-)
-const IconFileUp     = ({ size = 16 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
-)
-const IconKeyRound   = ({ size = 16 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-)
-const IconFileText   = ({ size = 16 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-)
-const IconSearch     = ({ size = 16 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-)
-const IconDownload   = ({ size = 16 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-)
-const IconChevronLeft  = ({ size = 16 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-)
-const IconChevronRight = ({ size = 16 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-)
-
-// ── Helpers ────────────────────────────────────────────────────────────────────
-const fmt = (n: number) => Number(n).toLocaleString('en-IN')
-
-const TONES: Record<string, { bg: string; text: string; border: string }> = {
-  teal:   { bg: 'rgba(32,178,170,0.12)',  text: '#20B2AA', border: 'rgba(32,178,170,0.3)'  },
-  coral:  { bg: 'rgba(255,127,80,0.12)',  text: '#FF7F50', border: 'rgba(255,127,80,0.3)'  },
-  amber:  { bg: 'rgba(255,191,0,0.12)',   text: '#FFBF00', border: 'rgba(255,191,0,0.3)'   },
-  purple: { bg: 'rgba(147,112,219,0.12)', text: '#9370DB', border: 'rgba(147,112,219,0.3)' },
+// ── Inline icons ──────────────────────────────────────────────────────────────
+const IC = {
+  Search: () => <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><circle cx={11} cy={11} r={8}/><line x1={21} y1={21} x2={16.65} y2={16.65}/></svg>,
+  DL:     () => <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1={12} y1={15} x2={12} y2={3}/></svg>,
+  Prev:   () => <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>,
+  Next:   () => <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>,
+  X:      () => <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><line x1={18} y1={6} x2={6} y2={18}/><line x1={6} y1={6} x2={18} y2={18}/></svg>,
 }
 
-function Kpi({ label, value, delta, tone = 'teal' }: { label: string; value: string | number; delta?: string; tone?: string }) {
-  const t = TONES[tone] ?? TONES.teal
+// ── Palette ───────────────────────────────────────────────────────────────────
+// CSS variable–based palette — adapts to light/dark theme automatically
+const T = {
+  teal:   { bg: 'hsl(var(--teal-bg))',   text: 'hsl(var(--teal-text))',   border: 'hsl(var(--teal-border))'   },
+  coral:  { bg: 'hsl(var(--coral-bg))',  text: 'hsl(var(--coral-text))',  border: 'hsl(var(--coral-border))'  },
+  amber:  { bg: 'hsl(var(--amber-bg))',  text: 'hsl(var(--amber-text))',  border: 'hsl(var(--amber-border))'  },
+  purple: { bg: 'hsl(var(--purple-bg))', text: 'hsl(var(--purple-text))', border: 'hsl(var(--purple-border))' },
+} as const
+type Tone = keyof typeof T
+const TONES: Tone[] = ['coral','amber','purple','teal','coral','amber','purple','teal']
+
+const fmt = (n: number | string) => Number(n).toLocaleString('en-IN')
+
+// ── Reusable components ───────────────────────────────────────────────────────
+function Kpi({ label, value, sub, tone = 'teal' }: { label: string; value: string | number; sub?: string; tone?: Tone }) {
+  const c = T[tone]
   return (
-    <div style={{ background: t.bg, border: `1px solid ${t.border}`, borderRadius: 12, padding: '16px 18px' }}>
-      <div style={{ fontSize: 11, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.14em', color: t.text, marginBottom: 6 }}>{label}</div>
-      <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--foreground, #e2e8f0)', lineHeight: 1.1 }}>{value}</div>
-      {delta && <div style={{ fontSize: 11, color: 'var(--muted-foreground, #94a3b8)', marginTop: 4, fontFamily: 'monospace' }}>{delta}</div>}
+    <div style={{ background: c.bg, border: `1px solid ${c.border}`, borderRadius: 12, padding: '14px 16px', minWidth: 0 }}>
+      <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', color: c.text, marginBottom: 5 }}>{label}</div>
+      <div style={{ fontSize: 22, fontWeight: 700, color: 'hsl(var(--foreground))', lineHeight: 1.1 }}>{value}</div>
+      {sub && <div style={{ fontSize: 11, color: 'hsl(var(--muted-foreground))', marginTop: 3, fontFamily: 'monospace' }}>{sub}</div>}
     </div>
   )
 }
 
-function Panel({ children, tone = 'teal', eyebrow, actions }: {
-  children: React.ReactNode; tone?: string; eyebrow?: string; actions?: React.ReactNode
-}) {
-  const t = TONES[tone] ?? TONES.teal
+function Card({ children, tone = 'teal', label, action }: { children: React.ReactNode; tone?: Tone; label?: string; action?: React.ReactNode }) {
+  const c = T[tone]
   return (
-    <div style={{ background: 'var(--card, #1e293b)', border: `1px solid ${t.border}`, borderRadius: 14, padding: 20 }}>
-      {(eyebrow || actions) && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
-          {eyebrow && <span style={{ fontSize: 10.5, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.18em', color: 'var(--muted-foreground, #94a3b8)' }}>{eyebrow}</span>}
-          {actions && <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{actions}</div>}
+    <div style={{ background: 'hsl(var(--surface-1))', border: `1px solid ${c.border}`, borderRadius: 14, padding: '16px 18px' }}>
+      {(label || action) && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 6 }}>
+          {label && <span style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.18em', color: 'hsl(var(--muted-foreground))' }}>{label}</span>}
+          {action}
         </div>
       )}
       {children}
@@ -67,46 +52,102 @@ function Panel({ children, tone = 'teal', eyebrow, actions }: {
   )
 }
 
-type SearchMode = 'single' | 'uuid' | 'authcode' | 'bulk'
-const MODES = [
-  { id: 'single'   as SearchMode, label: 'MSISDN / Search',    desc: 'Search across sender, PE ID, or IP',             tone: 'teal',   Icon: IconHash     },
-  { id: 'uuid'     as SearchMode, label: 'Request UUID',        desc: 'Inspect a single submission (not yet supported)', tone: 'purple', Icon: IconFileText },
-  { id: 'authcode' as SearchMode, label: 'PEID / Sender',       desc: 'All submissions for a PE or sender',             tone: 'amber',  Icon: IconKeyRound },
-  { id: 'bulk'     as SearchMode, label: 'Bulk search',         desc: 'Paste list of senders or PE IDs',                tone: 'coral',  Icon: IconFileUp   },
-]
+function Bar({ pct, tone = 'teal' }: { pct: number; tone?: Tone }) {
+  const c = T[tone]
+  return (
+    <div style={{ background: 'hsl(var(--muted))', borderRadius: 999, overflow: 'hidden', height: 4 }}>
+      <div style={{ height: '100%', width: `${Math.min(100, Math.max(0, pct))}%`, background: c.text, borderRadius: 999, transition: 'width 0.4s' }} />
+    </div>
+  )
+}
 
-// ── Main Component ─────────────────────────────────────────────────────────────
-export default function Trace() {
-  const { hours, days, from, to } = useDashboardControls()
+function Chip({ children, active, tone = 'coral', onClick }: { children: React.ReactNode; active?: boolean; tone?: Tone; onClick?: () => void }) {
+  const c = T[tone]
+  return (
+    <button onClick={onClick} style={{
+      padding: '3px 11px', borderRadius: 99, fontSize: 11.5, fontFamily: 'monospace',
+      border: `1px solid ${active ? c.text : c.border}`,
+      background: active ? c.text : c.bg,
+      color: active ? '#000' : c.text,
+      cursor: onClick ? 'pointer' : 'default', fontWeight: active ? 700 : 400, transition: 'all 0.15s',
+    }}>{children}</button>
+  )
+}
 
-  const [mode, setMode]           = useState<SearchMode>('single')
-  const [search, setSearch]       = useState('')
-  const [sender, setSender]       = useState('')
-  const [peId, setPeId]           = useState('')
-  const [filterCode, setFilterCode] = useState('')
-  const [page, setPage]           = useState(1)
+// ── Search input style (light, readable) ──────────────────────────────────────
+// CSS variable–based inputs — theme-aware
+const searchInput = (): React.CSSProperties => ({
+  background:   'hsl(var(--input-bg))',
+  border:       '1.5px solid hsl(var(--input-border))',
+  borderRadius: 8,
+  padding: '9px 12px 9px 36px',
+  fontSize: 13,
+  fontFamily: 'inherit',
+  color:        'hsl(var(--input-text))',
+  outline: 'none',
+  width: '100%',
+  transition: 'border-color 0.15s, box-shadow 0.15s',
+})
 
-  const [data, setData]           = useState<any>(null)
-  const [loading, setLoading]     = useState(true)
-  const [error, setError]         = useState('')
+const smInput = (): React.CSSProperties => ({
+  background:   'hsl(var(--input-bg))',
+  border:       '1.5px solid hsl(var(--input-border))',
+  borderRadius: 8,
+  padding: '8px 10px',
+  fontSize: 12.5,
+  fontFamily: 'monospace',
+  color:        'hsl(var(--input-text))',
+  outline: 'none',
+  width: '100%',
+})
 
-  const buildParams = useCallback(() => {
-    const params = new URLSearchParams({ page: String(page), limit: '50' })
-    if (from && to) { params.set('from', from); params.set('to', to) }
-    else if (days > 0) params.set('days', String(days))
-    else params.set('hours', String(hours))
-    if (filterCode)                    params.set('code', filterCode)
-    if (mode === 'single' && search)   params.set('search', search)
-    if (mode === 'authcode' && sender) params.set('sender', sender)
-    if (mode === 'authcode' && peId)   params.set('pe_id', peId)
-    return params
-  }, [hours, days, from, to, filterCode, mode, search, sender, peId, page])
+type Tab = 'trace' | 'scrubbing'
 
+// ── Main page ─────────────────────────────────────────────────────────────────
+export default function TraceScrubbing() {
+  const { toApiParams, refreshTick } = useDashboardControls()
+
+  // ── State ─────────────────────────────────────────────────────────────────
+  const [tab,         setTab]         = useState<Tab>('trace')
+  const [traffic,     setTraffic]     = useState('all')
+  const [activeStep,  setActiveStep]  = useState('')
+
+  // Search fields
+  const [searchInput2, setSearchInput2] = useState('')
+  const [authInput,    setAuthInput]    = useState('')
+  const [senderInput,  setSenderInput]  = useState('')
+  const [codeFilter,   setCodeFilter]   = useState('')
+
+  // Applied (committed) search state
+  const [appliedSearch,  setAppliedSearch]  = useState('')
+  const [appliedAuth,    setAppliedAuth]    = useState('')
+  const [appliedSender,  setAppliedSender]  = useState('')
+
+  const [page,    setPage]    = useState(1)
+  const [expanded, setExpanded] = useState<string | null>(null)
+  const [data,    setData]    = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error,   setError]   = useState('')
+
+  // ── Fetch ─────────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
-    setLoading(true)
-    setError('')
+    setLoading(true); setError('')
     try {
-      const res = await fetch(`/api/trace?${buildParams()}`)
+      const endpoint = tab === 'trace' ? '/api/trace' : '/api/scrubbing'
+      // Read toApiParams() fresh on every load call — ensures time range is current
+      const api = toApiParams()
+      const p   = new URLSearchParams()
+      if (api.from && api.to)         { p.set('from', api.from); p.set('to', api.to) }
+      else if (api.days)                p.set('days',  String(api.days))
+      else                              p.set('hours', String(api.hours ?? 24))
+      if (traffic !== 'all')            p.set('traffic', traffic)
+      if (appliedSearch)                p.set('search',   appliedSearch)
+      if (appliedAuth)                  p.set('authcode', appliedAuth)
+      if (appliedSender)                p.set('sender',   appliedSender)
+      if (codeFilter)                   p.set('code',     codeFilter)
+      if (activeStep && tab === 'scrubbing') p.set('step', activeStep)
+      if (tab === 'trace')            { p.set('page', String(page)); p.set('limit', '50') }
+      const res = await fetch(`${endpoint}?${p}`)
       if (!res.ok) throw new Error(await res.text())
       setData(await res.json())
     } catch (e: any) {
@@ -114,235 +155,479 @@ export default function Trace() {
     } finally {
       setLoading(false)
     }
-  }, [buildParams])
+  }, [tab, page, toApiParams, refreshTick, traffic, appliedSearch, appliedAuth, appliedSender, codeFilter, activeStep])
 
   useEffect(() => { load() }, [load])
+  useEffect(() => { setPage(1) }, [tab, traffic, codeFilter, activeStep, appliedSearch, appliedAuth, appliedSender])
 
-  const handleSearch = (e: React.FormEvent) => { e.preventDefault(); setPage(1); load() }
+  // ── Handlers ──────────────────────────────────────────────────────────────
+  const submitSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    setAppliedSearch(searchInput2)
+    setAppliedAuth(authInput)
+    setAppliedSender(senderInput)
+    setPage(1)
+  }
+
+  const clearAll = () => {
+    setSearchInput2(''); setAuthInput(''); setSenderInput('')
+    setAppliedSearch(''); setAppliedAuth(''); setAppliedSender('')
+    setCodeFilter(''); setActiveStep(''); setPage(1)
+  }
+
+  const hasFilters = appliedSearch || appliedAuth || appliedSender || codeFilter || activeStep || traffic !== 'all'
 
   const exportCSV = () => {
-    const rows = data?.rows ?? []
-    const headers = ['Time', 'Sender', 'PE_ID', 'Step', 'Code', 'Status', 'Source IP']
-    const csvRows = rows.map((r: any) =>
-      [r.ts, r.sender, r.peId, r.step, r.code, r.status === 1 ? 'passed' : 'blocked', r.ip].join(',')
+    const tableRows = tab === 'trace' ? (data?.rows ?? []) : (data?.log ?? [])
+    const headers   = tab === 'trace'
+      ? ['time','authcode','sender','pe_id','recipient','step','code','status','ip','error_message']
+      : ['time','authcode','sender','pe_id','recipient','step','code','ip','error_message']
+    const body = tableRows.map((r: any) =>
+      tab === 'trace'
+        ? [r.ts, r.authcode, r.sender, r.peId, r.recipient, r.step, r.code, r.status === 1 ? 'passed' : 'blocked', r.ip, r.errMsg].join(',')
+        : [r.ts, r.authcode, r.sender, r.peId, r.recipient, r.step, r.code, r.ip, r.errMsg].join(',')
     )
-    const blob = new Blob([[headers.join(','), ...csvRows].join('\n')], { type: 'text/csv' })
-    const url  = URL.createObjectURL(blob)
-    const a    = Object.assign(document.createElement('a'), { href: url, download: 'trace_log.csv' })
-    a.click()
-    URL.revokeObjectURL(url)
+    const blob = new Blob([[headers.join(','), ...body].join('\n')], { type: 'text/csv' })
+    Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `${tab}_export.csv` }).click()
   }
 
-  const kpis  = data?.kpis   ?? {}
-  const codes = data?.codes  ?? []
-  const rows  = data?.rows   ?? []
-  const pag   = data?.pagination ?? {}
+  // ── Derived data ──────────────────────────────────────────────────────────
+  const kpis      = data?.kpis   ?? {}
+  const codes     = data?.codes  ?? []
+  const senders   = data?.senders ?? []
+  const rows      = data?.rows   ?? []
+  const log       = data?.log    ?? []
+  const steps     = data?.steps  ?? []
+  const ips       = data?.ips    ?? []
+  const pag       = data?.pagination ?? {}
+  const tableRows = tab === 'trace' ? rows : log
+  const maxStep   = Math.max(...steps.map((s: any) => Number(s.count)), 1)
 
-  const inputStyle: React.CSSProperties = {
-    background: 'var(--secondary, #1e293b)', border: '1px solid var(--border, #334155)',
-    borderRadius: 8, padding: '8px 12px', fontSize: 12, fontFamily: 'monospace',
-    color: 'var(--foreground, #e2e8f0)', outline: 'none',
-  }
+  // ── Traffic toggle ─────────────────────────────────────────────────────────
+  const trafficOpts = [
+    { id: 'all', label: 'All Traffic' },
+    { id: 'domestic', label: '🏠 Domestic' },
+    { id: 'international', label: '✈️ International' },
+  ]
+
+  // ── Tab button style ───────────────────────────────────────────────────────
+  const tabBtn = (t: Tab): React.CSSProperties => ({
+    padding: '6px 20px', fontSize: 12, fontWeight: tab === t ? 700 : 500,
+    background: tab === t ? '#20B2AA' : 'transparent',
+    color: tab === t ? '#000' : 'var(--muted-foreground,#94a3b8)',
+    border: 'none', borderRadius: 7, cursor: 'pointer', transition: 'all 0.15s', letterSpacing: '0.06em',
+  })
+
+  const pct = (a: number, b: number) => b > 0 ? `${((a / b) * 100).toFixed(1)}%` : '—'
 
   return (
-    <div style={{ maxWidth: 1600, margin: '0 auto' }}>
-      {/* Header */}
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 11, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.18em', color: '#20B2AA', marginBottom: 6 }}>GoFlipo Trace</div>
-        <h1 style={{ fontSize: 28, fontWeight: 700, color: 'var(--foreground, #e2e8f0)', margin: 0 }}>Submission Log</h1>
-        <p style={{ fontSize: 13, color: 'var(--muted-foreground, #94a3b8)', marginTop: 6 }}>
-          Search and inspect every submission attempt in the GoFlipo scrubbing pipeline
-        </p>
+    <div style={{ maxWidth: 1600, margin: '0 auto', paddingBottom: 32 }}>
+
+      {/* ── Header ─────────────────────────────────────────────────────── */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 10.5, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: '#20B2AA', marginBottom: 5 }}>
+          GoFlipo · Log Explorer
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: 'hsl(var(--foreground))', margin: 0 }}>
+            Trace &amp; Scrubbing
+          </h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            {/* Tab switcher */}
+            <div style={{ display: 'flex', gap: 3, background: 'hsl(var(--muted))', padding: 3, borderRadius: 9 }}>
+              <button style={tabBtn('trace')}    onClick={() => setTab('trace')}>TRACE LOG</button>
+              <button style={tabBtn('scrubbing')} onClick={() => setTab('scrubbing')}>SCRUBBING</button>
+            </div>
+            {/* Traffic toggle */}
+            <div style={{ display: 'flex', gap: 3, background: 'hsl(var(--muted))', padding: 3, borderRadius: 9 }}>
+              {trafficOpts.map(o => (
+                <button key={o.id} onClick={() => setTraffic(o.id)}
+                  style={{ padding: '5px 12px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: 12,
+                    background: traffic === o.id ? '#20B2AA' : 'transparent',
+                    color: traffic === o.id ? '#000' : 'var(--muted-foreground,#94a3b8)',
+                    fontWeight: traffic === o.id ? 700 : 400, transition: 'all 0.15s' }}>
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Mode picker */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 20 }}>
-        {MODES.map((m) => {
-          const t = TONES[m.tone] ?? TONES.teal
-          const active = mode === m.id
-          return (
-            <button key={m.id} onClick={() => setMode(m.id)}
-              style={{ all: 'unset', cursor: 'pointer', textAlign: 'left', padding: 16, borderRadius: 14, border: `1px solid ${active ? t.border : 'rgba(148,163,184,0.1)'}`, background: active ? t.bg : 'var(--card, #1e293b)', transition: 'all 0.2s' }}>
-              <div style={{ color: t.text, marginBottom: 8 }}>
-                <m.Icon size={16} />
+      {/* ── Search Bar ─────────────────────────────────────────────────── */}
+      <Card tone="teal" label="Search &amp; Filter · sender · PE ID · mobile · authcode · IP · error message">
+        <form onSubmit={submitSearch}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
+            {/* Universal search */}
+            <div style={{ position: 'relative', gridColumn: '1 / -1' }}>
+              <div style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none', display: 'flex' }}>
+                <IC.Search />
               </div>
-              <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--foreground, #e2e8f0)' }}>{m.label}</div>
-              <div style={{ fontSize: 11, color: 'var(--muted-foreground, #94a3b8)', marginTop: 4, lineHeight: 1.4 }}>{m.desc}</div>
-            </button>
-          )
-        })}
-      </div>
-
-      {/* Search panel */}
-      <Panel tone="teal" eyebrow={`Mode · ${MODES.find(m => m.id === mode)!.label}`}>
-        <form onSubmit={handleSearch}>
-          {mode === 'single' && (
-            <div style={{ display: 'flex', gap: 8 }}>
               <input
-                style={{ ...inputStyle, flex: 1 }}
-                placeholder="Search sender, PE ID, or originator IP…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                value={searchInput2}
+                onChange={e => setSearchInput2(e.target.value)}
+                placeholder="Search by sender ID, PE ID, mobile number, IP address, or error message…"
+                style={searchInput()}
+                onFocus={e => { e.currentTarget.style.borderColor = 'hsl(var(--primary))'; e.currentTarget.style.boxShadow = '0 0 0 3px hsl(var(--primary) / 0.15)' }}
+                onBlur={e =>  { e.currentTarget.style.borderColor = 'hsl(var(--input-border))'; e.currentTarget.style.boxShadow = 'none' }}
               />
-              <button type="submit"
-                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: '#20B2AA', color: '#000', border: 'none', borderRadius: 8, fontSize: 12, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', cursor: 'pointer', fontWeight: 600 }}>
-                <IconSearch size={14} /> Trace
-              </button>
             </div>
-          )}
-          {mode === 'uuid' && (
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input style={{ ...inputStyle, flex: 1 }} placeholder="UUID lookup not yet supported — use search above" disabled />
-            </div>
-          )}
-          {mode === 'authcode' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8 }}>
-              <input style={inputStyle} placeholder="PEID — e.g. 2026012016513482330" value={peId}   onChange={(e) => setPeId(e.target.value)} />
-              <input style={inputStyle} placeholder="Sender ID — e.g. Parimatch"        value={sender} onChange={(e) => setSender(e.target.value)} />
-              <button type="submit"
-                style={{ padding: '8px 16px', background: '#20B2AA', color: '#000', border: 'none', borderRadius: 8, fontSize: 12, fontFamily: 'monospace', textTransform: 'uppercase', cursor: 'pointer', fontWeight: 600 }}>
-                Search
-              </button>
-            </div>
-          )}
-          {mode === 'bulk' && (
-            <div style={{ border: '1px dashed rgba(148,163,184,0.3)', borderRadius: 10, padding: 24, textAlign: 'center' }}>
-              <div style={{ color: 'var(--muted-foreground, #94a3b8)', marginBottom: 8 }}>
-                <IconFileUp size={24} />
-              </div>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>Not yet supported in this build</div>
-              <div style={{ fontSize: 11.5, color: 'var(--muted-foreground, #94a3b8)' }}>Use the search mode above instead</div>
-            </div>
-          )}
-        </form>
-      </Panel>
 
-      {loading && <div style={{ textAlign: 'center', padding: 40, color: 'var(--muted-foreground, #94a3b8)', fontFamily: 'monospace', marginTop: 20 }}>Loading trace data…</div>}
+            {/* Authcode */}
+            <div>
+              <label style={{ display: 'block', fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'hsl(var(--muted-foreground))', marginBottom: 5 }}>
+                Authcode (exact / partial)
+              </label>
+              <input
+                value={authInput}
+                onChange={e => setAuthInput(e.target.value)}
+                placeholder="e.g. 550e8400-e29b-41d4…"
+                style={smInput()}
+                onFocus={e => { e.currentTarget.style.borderColor = 'hsl(var(--primary))'; e.currentTarget.style.boxShadow = '0 0 0 3px hsl(var(--primary) / 0.15)' }}
+                onBlur={e =>  { e.currentTarget.style.borderColor = 'hsl(var(--input-border))'; e.currentTarget.style.boxShadow = 'none' }}
+              />
+            </div>
+
+            {/* Sender */}
+            <div>
+              <label style={{ display: 'block', fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'hsl(var(--muted-foreground))', marginBottom: 5 }}>
+                Sender ID
+              </label>
+              <select
+                value={senderInput}
+                onChange={e => setSenderInput(e.target.value)}
+                style={smInput()}
+              >
+                <option value="">All senders</option>
+                {senders.map((s: string) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+
+            {/* Error code */}
+            <div>
+              <label style={{ display: 'block', fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'hsl(var(--muted-foreground))', marginBottom: 5 }}>
+                Error Code
+              </label>
+              <select
+                value={codeFilter}
+                onChange={e => setCodeFilter(e.target.value)}
+                style={smInput()}
+              >
+                <option value="">All codes</option>
+                {codes.map((c: any) => <option key={c.code} value={c.code}>{c.code} — {c.pct}%</option>)}
+              </select>
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button type="submit"
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 20px', background: '#20B2AA', color: 'hsl(var(--foreground))', border: 'none', borderRadius: 8, fontSize: 12.5, fontFamily: 'inherit', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.05em' }}>
+              <IC.Search /> Search
+            </button>
+            {hasFilters && (
+              <button type="button" onClick={clearAll}
+                style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '8px 14px', background: 'hsl(var(--accent))', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 8, fontSize: 12, color: 'hsl(var(--muted-foreground))', cursor: 'pointer' }}>
+                <IC.X /> Clear all
+              </button>
+            )}
+          </div>
+        </form>
+
+        {/* Active filter chips */}
+        {hasFilters && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 12, paddingTop: 10, borderTop: '1px solid hsl(var(--border))' }}>
+            {appliedSearch  && <Chip tone="teal">search: {appliedSearch}</Chip>}
+            {appliedAuth    && <Chip tone="purple">authcode: {appliedAuth}</Chip>}
+            {appliedSender  && <Chip tone="amber">sender: {appliedSender}</Chip>}
+            {codeFilter     && <Chip tone="coral">code: {codeFilter}</Chip>}
+            {activeStep     && <Chip tone="coral">step: {activeStep}</Chip>}
+            {traffic !== 'all' && <Chip tone="teal">{traffic}</Chip>}
+          </div>
+        )}
+      </Card>
+
+      {/* ── Error banner ──────────────────────────────────────────────── */}
       {error && (
-        <div style={{ background: 'rgba(255,127,80,0.1)', border: '1px solid rgba(255,127,80,0.3)', borderRadius: 10, padding: 16, color: '#FF7F50', fontFamily: 'monospace', marginTop: 20 }}>
-          {error}
+        <div style={{ background: T.coral.bg, border: `1px solid ${T.coral.border}`, borderRadius: 10, padding: 14, color: T.coral.text, fontFamily: 'monospace', fontSize: 12, marginTop: 14 }}>
+          ⚠ {error}
         </div>
       )}
 
-      {data && (
+      {loading && (
+        <div style={{ textAlign: 'center', padding: 48, color: 'hsl(var(--muted-foreground))', fontFamily: 'monospace', marginTop: 16 }}>
+          Loading…
+        </div>
+      )}
+
+      {data && !loading && (
         <>
-          {/* KPI strip */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginTop: 20, marginBottom: 20 }}>
-            <Kpi label="Records found"    tone="teal"   value={fmt(pag.total ?? 0)} delta={filterCode ? `filtered: ${filterCode}` : 'no filter'} />
-            <Kpi label="Passed"           tone="purple" value={fmt(kpis.passed ?? 0)}
-              delta={kpis.total > 0 ? `${((kpis.passed / kpis.total) * 100).toFixed(1)}%` : '—'} />
-            <Kpi label="Blocked"          tone="coral"  value={fmt(kpis.blocked ?? 0)}
-              delta={kpis.total > 0 ? `${((kpis.blocked / kpis.total) * 100).toFixed(1)}%` : '—'} />
-            <Kpi label="Distinct senders" tone="amber"  value={fmt(kpis.distinctSenders ?? 0)} />
+          {/* ── KPI strip ─────────────────────────────────────────── */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))', gap: 10, marginTop: 16, marginBottom: 16 }}>
+            {tab === 'trace' ? (
+              <>
+                <Kpi label="Messages"         tone="teal"   value={fmt(kpis.messages ?? pag.total ?? 0)} sub={`${fmt(kpis.segments ?? 0)} segments`} />
+                <Kpi label="Passed segments"  tone="purple" value={fmt(kpis.passed ?? 0)}  sub={pct(kpis.passed ?? 0, kpis.segments ?? kpis.total ?? 0)} />
+                <Kpi label="Blocked segments" tone="coral"  value={fmt(kpis.blocked ?? 0)} sub={pct(kpis.blocked ?? 0, kpis.segments ?? kpis.total ?? 0)} />
+                <Kpi label="Distinct senders" tone="amber"  value={fmt(kpis.distinctSenders ?? 0)} />
+              </>
+            ) : (
+              <>
+                <Kpi label="Messages"    tone="teal"   value={fmt(kpis.messages ?? kpis.totalSubmitted ?? 0)} sub={`${fmt(kpis.segments ?? 0)} segments`} />
+                <Kpi label="Passed"      tone="purple" value={fmt(kpis.totalPassed  ?? 0)} sub={pct(kpis.totalPassed ?? 0, kpis.segments ?? kpis.totalSubmitted ?? 0)} />
+                <Kpi label="Blocked"     tone="coral"  value={fmt(kpis.totalBlocked ?? 0)} sub={pct(kpis.totalBlocked ?? 0, kpis.segments ?? kpis.totalSubmitted ?? 0)} />
+                <Kpi label="Worst step"  tone="amber"  value={kpis.worstStep ?? '—'} />
+                <Kpi label="Top error"   tone="coral"  value={kpis.topError  ?? '—'} />
+              </>
+            )}
           </div>
 
-          {/* Error code filter chips */}
-          <Panel tone="coral" eyebrow="Filter by error code · click to apply">
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              <button onClick={() => { setFilterCode(''); setPage(1) }}
-                style={{ padding: '4px 12px', borderRadius: 8, fontSize: 11, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', cursor: 'pointer', border: 'none', background: !filterCode ? 'var(--foreground, #e2e8f0)' : 'var(--muted, #334155)', color: !filterCode ? 'var(--background, #0f172a)' : 'var(--muted-foreground, #94a3b8)' }}>
-                All
-              </button>
-              {codes.map((c: any) => {
-                const t = TONES[c.tone] ?? TONES.coral
-                const active = filterCode === c.code
-                return (
-                  <button key={c.code}
-                    onClick={() => { setFilterCode(active ? '' : c.code); setPage(1) }}
-                    style={{ padding: '4px 12px', borderRadius: 8, fontSize: 11, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', cursor: 'pointer', border: 'none', background: active ? t.text : t.bg, color: active ? '#000' : t.text, transition: 'all 0.15s' }}>
-                    {c.code} · {c.pct}%
+          {/* ── SCRUBBING: Step breakdown + Codes ─────────────────── */}
+          {tab === 'scrubbing' && steps.length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 14, marginBottom: 16 }}>
+              <Card tone="coral" label="Blocks by validation step · click to filter">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <button onClick={() => setActiveStep('')}
+                    style={{ all: 'unset', cursor: 'pointer', padding: '5px 8px', borderRadius: 7, fontSize: 12.5,
+                      background: !activeStep ? T.teal.bg : 'transparent',
+                      color: !activeStep ? T.teal.text : 'var(--muted-foreground,#94a3b8)',
+                      fontWeight: !activeStep ? 700 : 400 }}>
+                    All steps
                   </button>
-                )
-              })}
-            </div>
-          </Panel>
-
-          {/* Results table */}
-          <div style={{ marginTop: 16 }}>
-            <Panel tone="teal"
-              eyebrow={`Trace results · ${fmt(pag.total ?? 0)} rows`}
-              actions={
-                <button onClick={exportCSV}
-                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', background: 'var(--muted, #334155)', border: 'none', borderRadius: 6, fontSize: 11, fontFamily: 'monospace', color: 'var(--muted-foreground, #94a3b8)', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                  <IconDownload size={12} /> CSV
-                </button>
-              }>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr>
-                      {['request_time', 'sender', 'pe_id', 'step', 'code', 'status', 'source_ip'].map((h) => (
-                        <th key={h} style={{ textAlign: 'left', fontFamily: 'monospace', fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '0.18em', color: 'var(--muted-foreground, #94a3b8)', paddingBottom: 10, paddingRight: 12, fontWeight: 500 }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.length === 0 && (
-                      <tr><td colSpan={7} style={{ fontFamily: 'monospace', color: 'var(--muted-foreground, #94a3b8)', padding: '20px 0', fontSize: 12 }}>No records found for the current filter</td></tr>
-                    )}
-                    {rows.map((r: any) => {
-                      const passed = r.status === 1
-                      const t = passed ? TONES.teal : TONES.coral
-                      return (
-                        <tr key={r.uuid} style={{ borderTop: '1px solid rgba(148,163,184,0.08)' }}>
-                          <td style={{ padding: '8px 12px 8px 0', fontFamily: 'monospace', fontSize: 11, color: 'var(--muted-foreground, #94a3b8)' }}>
-                            {String(r.ts).slice(5, 19)}
-                          </td>
-                          <td style={{ padding: '8px 12px 8px 0', fontWeight: 600 }}>{r.sender}</td>
-                          <td style={{ padding: '8px 12px 8px 0', fontFamily: 'monospace', fontSize: 11, color: 'var(--muted-foreground, #94a3b8)', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.peId}>{r.peId}</td>
-                          <td style={{ padding: '8px 12px 8px 0', fontFamily: 'monospace', fontSize: 11, color: 'var(--muted-foreground, #94a3b8)' }}>{r.step}</td>
-                          <td style={{ padding: '8px 12px 8px 0' }}>
-                            <span style={{ background: t.bg, color: t.text, fontFamily: 'monospace', fontSize: 11, padding: '2px 7px', borderRadius: 5 }}>{r.code || '—'}</span>
-                          </td>
-                          <td style={{ padding: '8px 12px 8px 0' }}>
-                            <span style={{ background: passed ? TONES.teal.bg : TONES.coral.bg, color: passed ? TONES.teal.text : TONES.coral.text, fontFamily: 'monospace', fontSize: 10.5, padding: '2px 7px', borderRadius: 5 }}>
-                              {passed ? 'passed' : 'blocked'}
-                            </span>
-                          </td>
-                          <td style={{ padding: '8px 12px 8px 0', fontFamily: 'monospace', fontSize: 11, color: 'var(--muted-foreground, #94a3b8)' }}>{r.ip}</td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Pagination */}
-              {pag.pages > 1 && (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, fontSize: 12 }}>
-                  <span style={{ fontFamily: 'monospace', color: 'var(--muted-foreground, #94a3b8)' }}>
-                    Page {page} of {pag.pages} · {fmt(pag.total)} rows
-                  </span>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                      style={{ display: 'flex', alignItems: 'center', padding: '4px 10px', background: 'var(--muted, #334155)', border: 'none', borderRadius: 6, cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1, color: 'var(--foreground, #e2e8f0)' }}>
-                      <IconChevronLeft size={14} />
-                    </button>
-                    <button onClick={() => setPage(p => Math.min(pag.pages, p + 1))} disabled={page >= pag.pages}
-                      style={{ display: 'flex', alignItems: 'center', padding: '4px 10px', background: 'var(--muted, #334155)', border: 'none', borderRadius: 6, cursor: page >= pag.pages ? 'not-allowed' : 'pointer', opacity: page >= pag.pages ? 0.4 : 1, color: 'var(--foreground, #e2e8f0)' }}>
-                      <IconChevronRight size={14} />
-                    </button>
-                  </div>
+                  {steps.map((s: any) => {
+                    const on = activeStep === s.step
+                    const tc = T[s.tone as Tone] ?? T.coral
+                    return (
+                      <button key={s.step} onClick={() => setActiveStep(on ? '' : s.step)}
+                        style={{ all: 'unset', cursor: 'pointer', width: '100%' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 12.5, fontWeight: on ? 700 : 400, color: on ? tc.text : 'inherit' }}>
+                          <span style={{ textTransform: 'capitalize' }}>{s.label ?? s.step}</span>
+                          <span style={{ fontFamily: 'monospace' }}>{fmt(s.count)}</span>
+                        </div>
+                        <Bar pct={s.pct} tone={s.tone ?? 'coral'} />
+                      </button>
+                    )
+                  })}
                 </div>
-              )}
-            </Panel>
-          </div>
+              </Card>
 
-          {/* Column reference */}
-          <div style={{ marginTop: 16 }}>
-            <Panel tone="purple" eyebrow="ClickHouse columns mapped · sms_cdr table">
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 8, marginBottom: 12 }}>
-                {['timestamp', 'sender_id', 'pe_id', 'originator_ip', 'dlr_code', 'dispatch_status', 'validation_step'].map((c) => (
-                  <div key={c} style={{ padding: '6px 10px', borderRadius: 6, background: 'rgba(148,163,184,0.06)', fontFamily: 'monospace', fontSize: 11.5, color: 'var(--muted-foreground, #94a3b8)' }}>
-                    {c}
+              <Card tone="purple" label={activeStep ? `Codes · ${activeStep}` : 'Error codes · all steps'}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  {codes.map((c: any) => {
+                    const tc = T[c.tone as Tone] ?? T.coral
+                    return (
+                      <div key={c.code} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid hsl(var(--border))' }}>
+                        <span style={{ background: tc.bg, color: tc.text, fontFamily: 'monospace', fontSize: 11.5, padding: '2px 8px', borderRadius: 5, flexShrink: 0 }}>{c.code}</span>
+                        <span style={{ flex: 1, fontSize: 12.5, fontWeight: 600 }}>{fmt(c.count)}</span>
+                        <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'hsl(var(--muted-foreground))' }}>{c.pct}%</span>
+                      </div>
+                    )
+                  })}
+                </div>
+                {ips.length > 0 && (
+                  <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid hsl(var(--border))' }}>
+                    <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', color: 'hsl(var(--muted-foreground))', marginBottom: 8 }}>Top source IPs</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                      {ips.map((ip: any) => (
+                        <div key={ip.ip} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, fontFamily: 'monospace' }}>
+                          <span>{ip.ip}</span>
+                          <span style={{ color: '#F5A623' }}>{ip.pct}%</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                ))}
+                )}
+              </Card>
+            </div>
+          )}
+
+          {/* ── Log table ─────────────────────────────────────────── */}
+          <Card
+            tone="teal"
+            label={tab === 'trace' ? `Trace log · ${fmt(pag.total ?? 0)} rows` : `Block audit · ${fmt(tableRows.length)} rows${activeStep ? ` · ${activeStep}` : ''}`}
+            action={
+              <button onClick={exportCSV}
+                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 12px', background: 'hsl(var(--accent))', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 7, fontSize: 11.5, fontFamily: 'monospace', color: 'hsl(var(--muted-foreground))', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                <IC.DL /> Export CSV
+              </button>
+            }
+          >
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse', minWidth: 900 }}>
+                <thead>
+                  <tr>
+                    {['', 'Time', 'Authcode', 'Sender', 'PE ID', 'Mobile', 'Step', 'Code', ...(tab === 'trace' ? ['Status'] : []), 'Source IP', 'Error Message'].map(h => (
+                      <th key={h} style={{ textAlign: 'left', fontFamily: 'monospace', fontSize: 9.5, textTransform: 'uppercase', letterSpacing: '0.18em', color: 'hsl(var(--muted-foreground))', paddingBottom: 10, paddingRight: 14, fontWeight: 500, whiteSpace: 'nowrap' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {tableRows.length === 0 && (
+                    <tr><td colSpan={11} style={{ fontFamily: 'monospace', color: 'hsl(var(--muted-foreground))', padding: '24px 0', fontSize: 12 }}>
+                      No records match the current filters
+                    </td></tr>
+                  )}
+                  {tableRows.map((r: any) => {
+                    const passed   = r.status === 1
+                    const ct       = passed ? T.teal : T.coral
+                    const isOpen   = expanded === r.uuid
+                    const colSpan  = tab === 'trace' ? 11 : 10
+
+                    // Parse error message JSON if possible
+                    let errParsed: Record<string, string> | null = null
+                    try { if (r.errMsg && r.errMsg.startsWith('{')) errParsed = JSON.parse(r.errMsg) } catch {}
+
+                    return (
+                      <React.Fragment key={r.uuid}>
+                        {/* ── Main row ── */}
+                        <tr
+                          onClick={() => setExpanded(isOpen ? null : r.uuid)}
+                          title={`${r.totalSegments && r.totalSegments > 1 ? `Multipart SMS · segment ${r.segmentSeq ?? 1} of ${r.totalSegments}` : 'Single-segment SMS'} · click to view full details`}
+                          style={{ borderTop: '1px solid hsl(var(--border))', cursor: 'pointer', transition: 'background 0.12s',
+                            background: isOpen ? 'hsl(var(--accent))' : 'transparent' }}
+                          onMouseEnter={e => { if (!isOpen) (e.currentTarget as HTMLElement).style.background = 'hsl(var(--accent) / 0.5)' }}
+                          onMouseLeave={e => { if (!isOpen) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+                        >
+                          {/* Expand indicator */}
+                          <td style={{ padding: '7px 6px 7px 0', width: 20, color: 'hsl(var(--muted-foreground))' }}>
+                            <span style={{ fontSize: 10, display: 'inline-block', transition: 'transform 0.15s', transform: isOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
+                          </td>
+                          <td style={{ padding: '7px 14px 7px 0', fontFamily: 'monospace', fontSize: 11, color: 'hsl(var(--muted-foreground))', whiteSpace: 'nowrap' }}>
+                            {String(r.ts ?? '').slice(5, 19)}
+                          </td>
+                          <td style={{ padding: '7px 14px 7px 0', fontFamily: 'monospace', fontSize: 11, color: 'hsl(var(--muted-foreground))', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <span title={r.authcode}>{r.authcode ? r.authcode.slice(0, 18) + '…' : '—'}</span>
+                            {r.totalSegments > 1 && (
+                              <span title={`Multipart · ${r.totalSegments} segments`}
+                                style={{ marginLeft: 5, fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 4, background: T.purple.bg, color: T.purple.text, verticalAlign: 'middle' }}>
+                                {r.totalSegments}×
+                              </span>
+                            )}
+                          </td>
+                          <td style={{ padding: '7px 14px 7px 0', fontWeight: 600, whiteSpace: 'nowrap' }}>{r.sender}</td>
+                          <td style={{ padding: '7px 14px 7px 0', fontFamily: 'monospace', fontSize: 11, color: 'hsl(var(--muted-foreground))', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {r.peId}
+                          </td>
+                          <td style={{ padding: '7px 14px 7px 0', fontFamily: 'monospace', fontSize: 11, color: 'hsl(var(--muted-foreground))' }}>
+                            {r.recipient ? String(r.recipient).slice(-10) : '—'}
+                          </td>
+                          <td style={{ padding: '7px 14px 7px 0', fontFamily: 'monospace', fontSize: 11, color: 'hsl(var(--muted-foreground))' }}>{r.step || '—'}</td>
+                          <td style={{ padding: '7px 14px 7px 0' }}>
+                            {r.code ? <span style={{ background: ct.bg, color: ct.text, fontFamily: 'monospace', fontSize: 11, padding: '2px 8px', borderRadius: 5 }}>{r.code}</span> : '—'}
+                          </td>
+                          {tab === 'trace' && (
+                            <td style={{ padding: '7px 14px 7px 0' }}>
+                              <span style={{ background: passed ? T.teal.bg : T.coral.bg, color: passed ? T.teal.text : T.coral.text, fontFamily: 'monospace', fontSize: 10.5, padding: '2px 8px', borderRadius: 5 }}>
+                                {passed ? 'passed' : 'blocked'}
+                              </span>
+                            </td>
+                          )}
+                          <td style={{ padding: '7px 14px 7px 0', fontFamily: 'monospace', fontSize: 11, color: 'hsl(var(--muted-foreground))' }}>{r.ip || '—'}</td>
+                          <td style={{ padding: '7px 14px 7px 0', fontSize: 11, color: 'hsl(var(--muted-foreground))', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {errParsed ? `${errParsed.reason ?? errParsed.message ?? errParsed.step ?? '—'}` : (r.errMsg || '—')}
+                          </td>
+                        </tr>
+
+                        {/* ── Expanded detail row ── */}
+                        {isOpen && (
+                          <tr style={{ background: 'hsl(var(--accent))', borderTop: 'none' }}>
+                            <td colSpan={colSpan} style={{ padding: '0 0 0 26px' }}>
+                              <div style={{
+                                margin: '0 0 12px 0',
+                                background: 'hsl(var(--surface-1))',
+                                border: `1px solid hsl(var(--teal-border))`,
+                                borderRadius: 10,
+                                padding: '14px 18px',
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                                gap: '10px 24px',
+                              }}>
+                                {/* All fields full-width */}
+                                {[
+                                  { label: 'Timestamp',     value: String(r.ts ?? '—') },
+                                  { label: 'Authcode',      value: r.authcode || '—',    mono: true },
+                                  { label: 'Sender ID',     value: r.sender   || '—' },
+                                  { label: 'PE ID',         value: r.peId     || '—',    mono: true },
+                                  { label: 'Mobile Number', value: r.recipient || '—',   mono: true },
+                                  { label: 'Source IP',     value: r.ip       || '—',    mono: true },
+                                  { label: 'Validation Step', value: r.step   || '—' },
+                                  { label: 'DLR Code',      value: r.code ? String(r.code) : '—', mono: true },
+                                  { label: 'Total Segments', value: r.totalSegments ? `${r.totalSegments} segment${r.totalSegments > 1 ? 's' : ''}${r.totalSegments > 1 ? ' (multipart SMS)' : ''}` : '1 segment', mono: true },
+                                  { label: 'Segment Number', value: r.segmentSeq ? `${r.segmentSeq} of ${r.totalSegments ?? 1}` : '—', mono: true },
+                                  ...(tab === 'trace' ? [{ label: 'Status', value: passed ? 'Passed ✓' : 'Blocked ✕' }] : []),
+                                ].map(f => (
+                                  <div key={f.label}>
+                                    <div style={{ fontSize: 9.5, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.14em', color: 'hsl(var(--muted-foreground))', marginBottom: 3 }}>
+                                      {f.label}
+                                    </div>
+                                    <div style={{ fontSize: 12.5, fontFamily: f.mono ? 'monospace' : 'inherit', wordBreak: 'break-all', color: 'hsl(var(--foreground))' }}>
+                                      {f.value}
+                                    </div>
+                                  </div>
+                                ))}
+
+                                {/* Error message — full width */}
+                                {r.errMsg && (
+                                  <div style={{ gridColumn: '1 / -1' }}>
+                                    <div style={{ fontSize: 9.5, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.14em', color: 'hsl(var(--muted-foreground))', marginBottom: 6 }}>
+                                      Error Message (raw)
+                                    </div>
+                                    {errParsed ? (
+                                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                                        {Object.entries(errParsed).map(([k, v]) => (
+                                          <div key={k} style={{ background: 'hsl(var(--coral-bg))', border: `1px solid hsl(var(--coral-border))`, borderRadius: 7, padding: '5px 10px' }}>
+                                            <span style={{ fontSize: 10, color: 'hsl(var(--coral-text))', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', marginBottom: 2 }}>{k}</span>
+                                            <span style={{ fontSize: 12, wordBreak: 'break-all', fontFamily: 'monospace' }}>{String(v)}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <pre style={{ margin: 0, fontSize: 12, fontFamily: 'monospace', background: 'hsl(var(--muted))', borderRadius: 7, padding: '8px 12px', whiteSpace: 'pre-wrap', wordBreak: 'break-all', color: 'hsl(var(--foreground))' }}>
+                                        {r.errMsg}
+                                      </pre>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {tab === 'trace' && pag.pages > 1 && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, paddingTop: 12, borderTop: '1px solid hsl(var(--border))' }}>
+                <span style={{ fontFamily: 'monospace', fontSize: 12, color: 'hsl(var(--muted-foreground))' }}>
+                  Page {page} of {pag.pages} · {fmt(pag.total)} total
+                </span>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, background: 'hsl(var(--accent))', border: '1px solid rgba(148,163,184,0.15)', borderRadius: 7, cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.35 : 1, color: 'hsl(var(--foreground))' }}>
+                    <IC.Prev />
+                  </button>
+                  {/* Page number chips */}
+                  {Array.from({ length: Math.min(5, pag.pages) }, (_, i) => {
+                    const p = Math.max(1, Math.min(pag.pages - 4, page - 2)) + i
+                    return (
+                      <button key={p} onClick={() => setPage(p)}
+                        style={{ width: 32, height: 32, background: p === page ? '#20B2AA' : 'hsl(var(--accent))', border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 12, fontWeight: p === page ? 700 : 400, color: p === page ? '#000' : 'var(--muted-foreground,#94a3b8)' }}>
+                        {p}
+                      </button>
+                    )
+                  })}
+                  <button onClick={() => setPage(p => Math.min(pag.pages, p + 1))} disabled={page >= pag.pages}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, background: 'hsl(var(--accent))', border: '1px solid rgba(148,163,184,0.15)', borderRadius: 7, cursor: page >= pag.pages ? 'not-allowed' : 'pointer', opacity: page >= pag.pages ? 0.35 : 1, color: 'hsl(var(--foreground))' }}>
+                    <IC.Next />
+                  </button>
+                </div>
               </div>
-              <div style={{ fontSize: 11.5, color: 'var(--muted-foreground, #94a3b8)' }}>
-                Trace reads from <span style={{ fontFamily: 'monospace', color: 'var(--foreground, #e2e8f0)' }}>goflipo.sms_cdr</span>. Dispatch status 1 = passed, others = blocked.
-              </div>
-            </Panel>
-          </div>
+            )}
+          </Card>
         </>
       )}
     </div>

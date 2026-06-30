@@ -24,9 +24,9 @@ function formatPhone(p: string) {
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 type Tone = 'teal' | 'purple' | 'coral' | 'amber'
-const TXT:  Record<Tone, string> = { teal: '#0d9488', purple: '#7c3aed', coral: '#ef4444', amber: '#d97706' }
-const BG:   Record<Tone, string> = { teal: '#f0fdfa', purple: '#faf5ff', coral: '#fef2f2', amber: '#fff7ed' }
-const BDR:  Record<Tone, string> = { teal: '#99f6e4', purple: '#d8b4fe', coral: '#fca5a5', amber: '#fed7aa' }
+const TXT:  Record<Tone, string> = { teal: 'hsl(var(--teal-text))', purple: 'hsl(var(--purple-text))', coral: 'hsl(var(--coral-text))', amber: 'hsl(var(--amber-text))' }
+const BG:   Record<Tone, string> = { teal: 'hsl(var(--teal-bg))', purple: 'hsl(var(--purple-bg))', coral: 'hsl(var(--coral-bg))', amber: 'hsl(var(--amber-bg))' }
+const BDR:  Record<Tone, string> = { teal: 'hsl(var(--teal-border))', purple: 'hsl(var(--purple-border))', coral: 'hsl(var(--coral-border))', amber: 'hsl(var(--amber-border))' }
 
 // Role → tone mapping
 const ROLES: Record<string, { label: string; tone: Tone }> = {
@@ -46,7 +46,7 @@ function Pill({ children, tone }: { children: React.ReactNode; tone: Tone | 'suc
   const map: Record<string, [string, string]> = {
     teal: [BG.teal, TXT.teal], purple: [BG.purple, TXT.purple],
     coral: [BG.coral, TXT.coral], amber: [BG.amber, TXT.amber],
-    success: ['#dcfce7', '#166534'], warning: ['#fff7ed', '#92400e'], danger: ['#fee2e2', '#991b1b'],
+    success: ['hsl(var(--teal-bg))', 'hsl(var(--teal-text))'], warning: ['hsl(var(--amber-bg))', 'hsl(var(--amber-text))'], danger: ['hsl(var(--coral-bg))', 'hsl(var(--coral-text))'],
   }
   const [bg, text] = map[tone] ?? [BG.teal, TXT.teal]
   return (
@@ -58,7 +58,7 @@ function Pill({ children, tone }: { children: React.ReactNode; tone: Tone | 'suc
 
 function Bar({ val, tone, height = 5 }: { val: number; tone: Tone; height?: number }) {
   return (
-    <div style={{ height, background: '#f3f4f6', borderRadius: height / 2, overflow: 'hidden', flex: 1, minWidth: 40 }}>
+    <div style={{ height, background: 'hsl(var(--muted))', borderRadius: height / 2, overflow: 'hidden', flex: 1, minWidth: 40 }}>
       <div style={{ width: `${Math.min(val, 100)}%`, height: '100%', background: TXT[tone], borderRadius: height / 2, transition: 'width 0.6s ease' }} />
     </div>
   )
@@ -69,12 +69,12 @@ function Panel({ children, tone, eyebrow, title, actions, style }: {
   actions?: React.ReactNode; style?: React.CSSProperties
 }) {
   return (
-    <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', borderTop: `3px solid ${TXT[tone]}`, overflow: 'hidden', ...style }}>
+    <div style={{ background: 'hsl(var(--surface-1))', borderRadius: 12, border: '1px solid hsl(var(--border))', borderTop: `3px solid ${TXT[tone]}`, overflow: 'hidden', ...style }}>
       {(eyebrow || title || actions) && (
-        <div style={{ padding: '14px 18px 10px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6' }}>
+        <div style={{ padding: '14px 18px 10px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', borderBottom: '1px solid hsl(var(--border))' }}>
           <div>
             {eyebrow && <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', color: TXT[tone], marginBottom: 2 }}>{eyebrow}</div>}
-            {title   && <div style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>{title}</div>}
+            {title   && <div style={{ fontSize: 15, fontWeight: 700, color: 'hsl(var(--foreground))' }}>{title}</div>}
           </div>
           {actions && <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>{actions}</div>}
         </div>
@@ -86,10 +86,10 @@ function Panel({ children, tone, eyebrow, title, actions, style }: {
 
 function Kpi({ label, value, delta, tone }: { label: string; value: React.ReactNode; delta?: string; tone: Tone }) {
   return (
-    <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderTop: `3px solid ${TXT[tone]}`, borderRadius: 12, padding: '16px 18px' }}>
-      <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9ca3af', marginBottom: 6 }}>{label}</div>
+    <div style={{ background: 'hsl(var(--surface-1))', border: '1px solid hsl(var(--border))', borderTop: `3px solid ${TXT[tone]}`, borderRadius: 12, padding: '16px 18px' }}>
+      <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'hsl(var(--muted-foreground))', marginBottom: 6 }}>{label}</div>
       <div style={{ fontSize: 28, fontWeight: 700, color: TXT[tone], lineHeight: 1.1, marginBottom: 4 }}>{value}</div>
-      {delta && <div style={{ fontSize: 11, color: '#6b7280', fontFamily: 'monospace' }}>{delta}</div>}
+      {delta && <div style={{ fontSize: 11, color: 'hsl(var(--muted-foreground))', fontFamily: 'monospace' }}>{delta}</div>}
     </div>
   )
 }
@@ -98,7 +98,7 @@ function SectionLabel({ tone = 'teal', children }: { tone?: Tone; children: Reac
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '18px 0 10px' }}>
       <div style={{ height: 1, width: 24, background: TXT[tone] }} />
-      <span style={{ fontSize: 10.5, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: '#6b7280' }}>{children}</span>
+      <span style={{ fontSize: 10.5, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: 'hsl(var(--muted-foreground))' }}>{children}</span>
     </div>
   )
 }
@@ -161,7 +161,7 @@ export default function UsersPage() {
   }))
 
   const totalPages = Math.ceil(total / 50)
-  const C = { text: '#111827', muted: '#6b7280', border: '#e5e7eb', card: '#fff' }
+  const C = { text: 'hsl(var(--foreground))', muted: 'hsl(var(--muted-foreground))', border: 'hsl(var(--border))', card: 'hsl(var(--surface-1))' }
 
   const applySearch = () => { setSearch(searchInput); setPage(1) }
 
@@ -173,21 +173,21 @@ export default function UsersPage() {
         <div style={{ fontSize: 10, color: TXT.teal, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 2 }}>GoFlipo Support</div>
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
           <div>
-            <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0 }}>Users</h1>
+            <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0, color: 'hsl(var(--foreground))' }}>Users</h1>
             <div style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>Entities, senders, and access providers in the chain</div>
           </div>
-          {loading && <span style={{ fontSize: 11, fontFamily: 'monospace', color: '#9ca3af' }}>Loading…</span>}
+          {loading && <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'hsl(var(--muted-foreground))' }}>Loading…</span>}
         </div>
       </div>
 
       {error && (
-        <div style={{ padding: '10px 14px', marginBottom: 12, borderRadius: 8, fontSize: 12, background: '#fef2f2', border: '1px solid #fca5a5', color: '#dc2626' }}>⚠ {error}</div>
+        <div style={{ padding: '10px 14px', marginBottom: 12, borderRadius: 8, fontSize: 12, background: 'hsl(var(--coral-bg))', border: '1px solid #fca5a5', color: 'hsl(var(--coral-text))' }}>⚠ {error}</div>
       )}
 
       {/* ── Filter bar ── */}
-      <div style={{ background: C.card, border: '1px solid #e5e7eb', borderRadius: 10, padding: '10px 16px', marginBottom: 16, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+      <div style={{ background: C.card, border: '1px solid hsl(var(--border))', borderRadius: 10, padding: '10px 16px', marginBottom: 16, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
         <select value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1) }}
-          style={{ fontSize: 11.5, padding: '6px 10px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#f9fafb', fontFamily: 'monospace', cursor: 'pointer' }}>
+          style={{ fontSize: 11.5, padding: '6px 10px', borderRadius: 6, border: '1px solid hsl(var(--border))', background: 'hsl(var(--surface-2))', fontFamily: 'monospace', cursor: 'pointer' }}>
           <option value=''>All roles</option>
           {Object.entries(ROLES).map(([code, r]) => <option key={code} value={code}>{code.toUpperCase()} · {r.label}</option>)}
         </select>
@@ -196,15 +196,15 @@ export default function UsersPage() {
           onChange={e => setSearchInput(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && applySearch()}
           placeholder="Search by ID / name / email…"
-          style={{ flex: 1, minWidth: 200, fontSize: 11.5, padding: '6px 10px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#f9fafb', outline: 'none', fontFamily: 'inherit' }}
+          style={{ flex: 1, minWidth: 200, fontSize: 11.5, padding: '6px 10px', borderRadius: 6, border: '1px solid hsl(var(--border))', background: 'hsl(var(--surface-2))', outline: 'none', fontFamily: 'inherit' }}
         />
         <button onClick={applySearch}
-          style={{ fontSize: 11.5, padding: '6px 14px', borderRadius: 6, cursor: 'pointer', border: 'none', background: TXT.teal, color: '#fff', fontWeight: 600, fontFamily: 'monospace' }}>
+          style={{ fontSize: 11.5, padding: '6px 14px', borderRadius: 6, cursor: 'pointer', border: 'none', background: TXT.teal, color: 'hsl(var(--surface-1))', fontWeight: 600, fontFamily: 'monospace' }}>
           Apply
         </button>
         {(search || typeFilter) && (
           <button onClick={() => { setSearch(''); setSearchInput(''); setTypeFilter(''); setPage(1) }}
-            style={{ fontSize: 11, padding: '5px 10px', borderRadius: 6, cursor: 'pointer', border: '1px solid #e5e7eb', background: C.card, color: C.muted, fontFamily: 'monospace' }}>
+            style={{ fontSize: 11, padding: '5px 10px', borderRadius: 6, cursor: 'pointer', border: '1px solid hsl(var(--border))', background: C.card, color: C.muted, fontFamily: 'monospace' }}>
             Clear ✕
           </button>
         )}
@@ -229,7 +229,7 @@ export default function UsersPage() {
             return (
               <button key={r.type}
                 onClick={() => setTypeFilter(active ? '' : r.type)}
-                style={{ textAlign: 'left', borderRadius: 8, border: `1px solid ${active ? TXT[t] : '#e5e7eb'}`, padding: '10px 10px', cursor: 'pointer', background: active ? BG[t] : C.card, transition: 'all 0.12s' }}>
+                style={{ textAlign: 'left', borderRadius: 8, border: `1px solid ${active ? TXT[t] : 'hsl(var(--border))'}`, padding: '10px 10px', cursor: 'pointer', background: active ? BG[t] : C.card, transition: 'all 0.12s' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                   <Pill tone={t}>{r.type?.toUpperCase()}</Pill>
                   <span style={{ fontSize: 11, color: C.muted, fontFamily: 'monospace' }}>{p}%</span>
@@ -276,8 +276,8 @@ export default function UsersPage() {
                 </div>
               )
             })}
-            {newUsers.length === 0 && <div style={{ color: '#9ca3af', fontSize: 12, fontFamily: 'monospace', textAlign: 'center' }}>No new users in 7 days</div>}
-            <div style={{ paddingTop: 10, marginTop: 4, borderTop: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', fontSize: 11, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+            {newUsers.length === 0 && <div style={{ color: 'hsl(var(--muted-foreground))', fontSize: 12, fontFamily: 'monospace', textAlign: 'center' }}>No new users in 7 days</div>}
+            <div style={{ paddingTop: 10, marginTop: 4, borderTop: '1px solid hsl(var(--border))', display: 'flex', justifyContent: 'space-between', fontSize: 11, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
               <span style={{ color: C.muted }}>Total new (7d)</span>
               <span style={{ color: TXT.amber, fontWeight: 700 }}>+{newTotal7d}</span>
             </div>
@@ -291,10 +291,10 @@ export default function UsersPage() {
         actions={
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}
-              style={{ fontSize: 11, padding: '3px 10px', borderRadius: 5, cursor: page <= 1 ? 'default' : 'pointer', border: '1px solid #e5e7eb', background: '#f9fafb', color: page <= 1 ? '#d1d5db' : C.muted, fontFamily: 'monospace' }}>← Prev</button>
+              style={{ fontSize: 11, padding: '3px 10px', borderRadius: 5, cursor: page <= 1 ? 'default' : 'pointer', border: '1px solid hsl(var(--border))', background: 'hsl(var(--surface-2))', color: page <= 1 ? 'hsl(var(--border))' : C.muted, fontFamily: 'monospace' }}>← Prev</button>
             <span style={{ fontSize: 11, fontFamily: 'monospace', color: C.muted }}>{page} / {totalPages || 1}</span>
             <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}
-              style={{ fontSize: 11, padding: '3px 10px', borderRadius: 5, cursor: page >= totalPages ? 'default' : 'pointer', border: '1px solid #e5e7eb', background: '#f9fafb', color: page >= totalPages ? '#d1d5db' : C.muted, fontFamily: 'monospace' }}>Next →</button>
+              style={{ fontSize: 11, padding: '3px 10px', borderRadius: 5, cursor: page >= totalPages ? 'default' : 'pointer', border: '1px solid hsl(var(--border))', background: 'hsl(var(--surface-2))', color: page >= totalPages ? 'hsl(var(--border))' : C.muted, fontFamily: 'monospace' }}>Next →</button>
           </div>
         }
       >
@@ -312,8 +312,8 @@ export default function UsersPage() {
                 const t = roleTone(u.type)
                 const statusOk = u.self_status === 'approved' || u.self_status === 'active'
                 return (
-                  <tr key={u.id} style={{ borderTop: '1px solid #f3f4f6', cursor: 'pointer' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = '#f9fafb')}
+                  <tr key={u.id} style={{ borderTop: '1px solid hsl(var(--border))', cursor: 'pointer' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'hsl(var(--surface-2))')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                     <td style={{ padding: '9px 10px 9px 0', fontFamily: 'monospace', fontSize: 11, color: C.muted }}>{u.id}</td>
                     <td style={{ padding: '9px 10px 9px 0', fontWeight: 600, maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name || '—'}</td>
@@ -321,7 +321,7 @@ export default function UsersPage() {
                     <td style={{ padding: '9px 10px 9px 0', fontFamily: 'monospace', fontSize: 11, color: C.muted, whiteSpace: 'nowrap' }}>{formatPhone(u.phone)}</td>
                     <td style={{ padding: '9px 10px 9px 0' }}><Pill tone={t}>{u.type?.toUpperCase()}</Pill></td>
                     <td style={{ padding: '9px 10px 9px 0' }}><Pill tone={statusOk ? 'success' : 'warning'}>{u.self_status || '—'}</Pill></td>
-                    <td style={{ padding: '9px 10px 9px 0' }}>{u.ceind_status ? <Pill tone={u.ceind_status === 'approved' ? 'success' : 'warning'}>{u.ceind_status}</Pill> : <span style={{ color: '#d1d5db' }}>—</span>}</td>
+                    <td style={{ padding: '9px 10px 9px 0' }}>{u.ceind_status ? <Pill tone={u.ceind_status === 'approved' ? 'success' : 'warning'}>{u.ceind_status}</Pill> : <span style={{ color: 'hsl(var(--border))' }}>—</span>}</td>
                     <td style={{ padding: '9px 10px 9px 0', fontFamily: 'monospace', fontSize: 11, color: C.muted, whiteSpace: 'nowrap' }}>{ts(u.created_at)}</td>
                     <td style={{ padding: '9px 0', fontFamily: 'monospace', fontSize: 10.5, color: C.muted, textAlign: 'right', textTransform: 'uppercase', letterSpacing: '0.07em' }}>open →</td>
                   </tr>
@@ -355,8 +355,8 @@ export default function UsersPage() {
                 const t = roleTone(a.type)
                 const statusOk = a.self_status === 'approved' || a.self_status === 'active'
                 return (
-                  <tr key={a.id} style={{ borderTop: '1px solid #f3f4f6', cursor: 'pointer' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = '#f9fafb')}
+                  <tr key={a.id} style={{ borderTop: '1px solid hsl(var(--border))', cursor: 'pointer' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'hsl(var(--surface-2))')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                     <td style={{ padding: '8px 10px 8px 0', fontFamily: 'monospace', fontSize: 11, color: C.muted }}>{a.id}</td>
                     <td style={{ padding: '8px 10px 8px 0', fontFamily: 'monospace', fontSize: 11, color: C.muted, whiteSpace: 'nowrap' }}>{ts(a.ts)}</td>

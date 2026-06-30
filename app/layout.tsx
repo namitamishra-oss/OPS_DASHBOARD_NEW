@@ -20,7 +20,7 @@ const dmSans = DM_Sans({
 })
 
 export const metadata: Metadata = {
-  title: 'GoFlipo/Support — Internal Operations Console',
+  title: 'GoFlipo Ops',
   description: 'Real-time delivery, scrubbing & latency telemetry',
   robots: { index: false, follow: false },
 }

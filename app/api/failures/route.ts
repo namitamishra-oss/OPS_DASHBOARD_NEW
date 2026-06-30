@@ -6,9 +6,15 @@ const DB = 'goflipo'
 
 // Convert time range params → ClickHouse WHERE clause
 // alias: table alias prefix, e.g. 's' or 'sl' or '' (no prefix)
+function normDt(dt: string): string {
+  if (!dt) return dt
+  const s = dt.replace('T', ' ')
+  return s.length === 16 ? s + ':00' : s
+}
+
 function timeClause(hours?: number, days?: number, from?: string, to?: string, alias = 's'): string {
   const col = alias ? `${alias}.timestamp` : 'timestamp'
-  if (from && to)  return `${col} >= '${from}' AND ${col} <= '${to}'`
+  if (from && to)  return `${col} >= '${normDt(from)}' AND ${col} <= '${normDt(to)}'`
   if (days)        return `${col} >= now() - INTERVAL ${days} DAY`
   const h = hours ?? 24
   return `${col} >= now() - INTERVAL ${h} HOUR`
@@ -34,9 +40,10 @@ export async function GET(request: Request) {
     const kpiRes = await clickhouse.query({
       query: `
         SELECT
-          count()                                                AS total,
-          countIf(d.is_success = 0)                             AS failed,
-          round(countIf(d.is_success = 0)*100.0/count(), 2)    AS fail_pct,
+          uniq(s.authcode)                                       AS messages,
+          sum(s.total_segments)                                  AS total,
+          sumIf(s.total_segments, d.is_success = 0)             AS failed,
+          round(sumIf(s.total_segments,d.is_success=0)*100.0/sum(s.total_segments),2) AS fail_pct,
           uniqExact(if(d.is_success=0, s.dlr_code, NULL))      AS distinct_codes,
           uniqExact(if(d.is_success=0, d.validator, NULL))     AS distinct_validators
         FROM ${DB}.sms_cdr s
@@ -52,8 +59,8 @@ export async function GET(request: Request) {
       query: `
         SELECT
           d.validator                                              AS validator,
-          count()                                                  AS cnt,
-          round(count()*100.0 / sum(count()) OVER (), 1)          AS pct
+          sum(s.total_segments)                                    AS cnt,
+          round(sum(s.total_segments)*100.0 / sum(sum(s.total_segments)) OVER (), 1) AS pct
         FROM ${DB}.sms_cdr s
         LEFT JOIN ${DB}.dlr_code_reference d ON s.dlr_code = d.dlr_code
         WHERE ${WHERE} AND d.is_success = 0 AND d.validator != ''
@@ -74,8 +81,8 @@ export async function GET(request: Request) {
           any(d.description)                                      AS name,
           any(d.validator)                                        AS validator,
           any(d.severity)                                         AS severity,
-          count()                                                 AS cnt,
-          round(count()*100.0 / sum(count()) OVER (), 1)         AS pct
+          sum(s.total_segments)                                   AS cnt,
+          round(sum(s.total_segments)*100.0 / sum(sum(s.total_segments)) OVER (), 1) AS pct
         FROM ${DB}.sms_cdr s
         LEFT JOIN ${DB}.dlr_code_reference d ON s.dlr_code = d.dlr_code
         WHERE ${WHERE} AND d.is_success = 0
@@ -118,9 +125,10 @@ export async function GET(request: Request) {
       query: `
         SELECT
           s.sender_id,
-          count()                                                AS total,
-          countIf(d.is_success = 0)                             AS failed,
-          round(countIf(d.is_success=0)*100.0/count(), 1)      AS fail_pct
+          uniq(s.authcode)                                       AS messages,
+          sum(s.total_segments)                                  AS total,
+          sumIf(s.total_segments, d.is_success = 0)             AS failed,
+          round(sumIf(s.total_segments,d.is_success=0)*100.0/sum(s.total_segments),1) AS fail_pct
         FROM ${DB}.sms_cdr s
         LEFT JOIN ${DB}.dlr_code_reference d ON s.dlr_code = d.dlr_code
         WHERE ${WHERE}
@@ -143,9 +151,10 @@ export async function GET(request: Request) {
             splitByChar('.', s.originator_ip)[2], '.',
             splitByChar('.', s.originator_ip)[3], '.x'
           )                                                      AS ip_subnet,
-          count()                                                AS total,
-          countIf(d.is_success = 0)                             AS failed,
-          round(countIf(d.is_success=0)*100.0/count(), 1)      AS fail_pct
+          uniq(s.authcode)                                       AS messages,
+          sum(s.total_segments)                                  AS total,
+          sumIf(s.total_segments, d.is_success = 0)             AS failed,
+          round(sumIf(s.total_segments,d.is_success=0)*100.0/sum(s.total_segments),1) AS fail_pct
         FROM ${DB}.sms_cdr s
         LEFT JOIN ${DB}.dlr_code_reference d ON s.dlr_code = d.dlr_code
         WHERE ${WHERE} AND s.originator_ip != '' AND s.originator_ip IS NOT NULL
@@ -163,9 +172,10 @@ export async function GET(request: Request) {
       query: `
         SELECT
           s.validation_step                                      AS step,
-          count()                                                AS total,
-          countIf(d.is_success = 0)                             AS failed,
-          round(countIf(d.is_success=0)*100.0/count(), 1)      AS fail_pct
+          uniq(s.authcode)                                       AS messages,
+          sum(s.total_segments)                                  AS total,
+          sumIf(s.total_segments, d.is_success = 0)             AS failed,
+          round(sumIf(s.total_segments,d.is_success=0)*100.0/sum(s.total_segments),1) AS fail_pct
         FROM ${DB}.sms_cdr s
         LEFT JOIN ${DB}.dlr_code_reference d ON s.dlr_code = d.dlr_code
         WHERE ${WHERE} AND s.validation_step IS NOT NULL AND s.validation_step != ''
@@ -213,7 +223,7 @@ export async function GET(request: Request) {
             : 'toStartOfHour(s.timestamp) AS bucket'
           },
           countIf(d.is_success = 0) AS failed,
-          count()                   AS total
+          sum(s.total_segments)      AS total
         FROM ${DB}.sms_cdr s
         LEFT JOIN ${DB}.dlr_code_reference d ON s.dlr_code = d.dlr_code
         WHERE ${WHERE}

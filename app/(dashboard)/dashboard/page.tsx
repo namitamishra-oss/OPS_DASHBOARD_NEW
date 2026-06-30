@@ -21,17 +21,17 @@ function ts(iso: string) {
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 type Tone = 'teal' | 'purple' | 'coral' | 'amber'
-const TXT:  Record<Tone, string> = { teal: '#0d9488', purple: '#7c3aed', coral: '#ef4444', amber: '#d97706' }
-const BG:   Record<Tone, string> = { teal: '#f0fdfa', purple: '#faf5ff', coral: '#fef2f2', amber: '#fff7ed' }
-const BDR:  Record<Tone, string> = { teal: '#99f6e4', purple: '#d8b4fe', coral: '#fca5a5', amber: '#fed7aa' }
+const TXT:  Record<Tone, string> = { teal: 'hsl(var(--teal-text))', purple: 'hsl(var(--purple-text))', coral: 'hsl(var(--coral-text))', amber: 'hsl(var(--amber-text))' }
+const BG:   Record<Tone, string> = { teal: 'hsl(var(--teal-bg))', purple: 'hsl(var(--purple-bg))', coral: 'hsl(var(--coral-bg))', amber: 'hsl(var(--amber-bg))' }
+const BDR:  Record<Tone, string> = { teal: 'hsl(var(--teal-border))', purple: 'hsl(var(--purple-border))', coral: 'hsl(var(--coral-border))', amber: 'hsl(var(--amber-border))' }
 
 // ── Primitives ────────────────────────────────────────────────────────────────
 function Pill({ children, tone }: { children: React.ReactNode; tone: Tone | 'success' | 'warning' | 'danger' | 'info' }) {
   const map: Record<string, [string, string]> = {
     teal: [BG.teal, TXT.teal], purple: [BG.purple, TXT.purple],
     coral: [BG.coral, TXT.coral], amber: [BG.amber, TXT.amber],
-    success: ['#dcfce7', '#166534'], warning: ['#fff7ed', '#92400e'],
-    danger: ['#fee2e2', '#991b1b'], info: ['#eff6ff', '#1e40af'],
+    success: ['hsl(var(--teal-bg))', 'hsl(var(--teal-text))'], warning: ['hsl(var(--amber-bg))', 'hsl(var(--amber-text))'],
+    danger: ['hsl(var(--coral-bg))', 'hsl(var(--coral-text))'], info: ['hsl(var(--purple-bg))', 'hsl(var(--purple-text))'],
   }
   const [bg, text] = map[tone] ?? [BG.teal, TXT.teal]
   return (
@@ -43,7 +43,7 @@ function Pill({ children, tone }: { children: React.ReactNode; tone: Tone | 'suc
 
 function Bar({ val, tone, height = 5 }: { val: number; tone: Tone; height?: number }) {
   return (
-    <div style={{ height, background: '#f3f4f6', borderRadius: height / 2, overflow: 'hidden', flex: 1, minWidth: 40 }}>
+    <div style={{ height, background: 'hsl(var(--muted))', borderRadius: height / 2, overflow: 'hidden', flex: 1, minWidth: 40 }}>
       <div style={{ width: `${Math.min(val, 100)}%`, height: '100%', background: TXT[tone], borderRadius: height / 2, transition: 'width 0.6s ease' }} />
     </div>
   )
@@ -54,12 +54,12 @@ function Panel({ children, tone, eyebrow, title, actions, style }: {
   actions?: React.ReactNode; style?: React.CSSProperties
 }) {
   return (
-    <div style={{ background: '#fff', borderRadius: 12, border: `1px solid #e5e7eb`, borderTop: `3px solid ${TXT[tone]}`, overflow: 'hidden', ...style }}>
+    <div style={{ background: 'hsl(var(--surface-1))', borderRadius: 12, border: `1px solid hsl(var(--border))`, borderTop: `3px solid ${TXT[tone]}`, overflow: 'hidden', ...style }}>
       {(eyebrow || title || actions) && (
-        <div style={{ padding: '14px 18px 10px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', borderBottom: '1px solid #f3f4f6' }}>
+        <div style={{ padding: '14px 18px 10px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', borderBottom: '1px solid hsl(var(--border))' }}>
           <div>
             {eyebrow && <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.15em', color: TXT[tone], marginBottom: 2 }}>{eyebrow}</div>}
-            {title   && <div style={{ fontSize: 15, fontWeight: 700, color: '#111827' }}>{title}</div>}
+            {title   && <div style={{ fontSize: 15, fontWeight: 700, color: 'hsl(var(--foreground))' }}>{title}</div>}
           </div>
           {actions && <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>{actions}</div>}
         </div>
@@ -73,7 +73,7 @@ function SectionLabel({ tone = 'teal', children }: { tone?: Tone; children: Reac
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '18px 0 10px' }}>
       <div style={{ height: 1, width: 24, background: TXT[tone] }} />
-      <span style={{ fontSize: 10.5, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: '#6b7280' }}>{children}</span>
+      <span style={{ fontSize: 10.5, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: 'hsl(var(--muted-foreground))' }}>{children}</span>
     </div>
   )
 }
@@ -102,17 +102,17 @@ function StatusChip({ icon, label, value, sub, tone, live }: {
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: TXT[tone], marginBottom: 4 }}>
         {icon && <span style={{ fontSize: 12 }}>{icon}</span>}
         <span style={{ fontSize: 9.5, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.18em' }}>{label}</span>
-        {live && <span style={{ marginLeft: 'auto', width: 6, height: 6, borderRadius: '50%', background: '#16a34a', flexShrink: 0 }} />}
+        {live && <span style={{ marginLeft: 'auto', width: 6, height: 6, borderRadius: '50%', background: 'hsl(var(--teal-text))', flexShrink: 0 }} />}
       </div>
-      <div style={{ fontSize: 18, fontWeight: 700, color: '#111827', lineHeight: 1.2 }}>{value}</div>
-      {sub && <div style={{ fontSize: 10, fontFamily: 'monospace', color: '#6b7280', marginTop: 2 }}>{sub}</div>}
+      <div style={{ fontSize: 18, fontWeight: 700, color: 'hsl(var(--foreground))', lineHeight: 1.2 }}>{value}</div>
+      {sub && <div style={{ fontSize: 10, fontFamily: 'monospace', color: 'hsl(var(--muted-foreground))', marginTop: 2 }}>{sub}</div>}
     </div>
   )
 }
 
 function LineChart({ data, tone }: { data: any[]; tone: Tone }) {
   if (!data || data.length < 2) return (
-    <div style={{ height: 128, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af', fontSize: 12 }}>No data</div>
+    <div style={{ height: 128, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'hsl(var(--muted-foreground))', fontSize: 12 }}>No data</div>
   )
   const W = 780, H = 110, PAD = { top: 8, right: 8, bottom: 20, left: 36 }
   const iW = W - PAD.left - PAD.right
@@ -200,22 +200,22 @@ function PipelineCard({ eyebrow, title, sub, tone, arrow, active, onClick }: {
   return (
     <div style={{ position: 'relative' }}>
       {arrow && (
-        <div style={{ display: 'none', position: 'absolute', left: -12, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af', fontSize: 20, zIndex: 10 }}>›</div>
+        <div style={{ display: 'none', position: 'absolute', left: -12, top: '50%', transform: 'translateY(-50%)', color: 'hsl(var(--muted-foreground))', fontSize: 20, zIndex: 10 }}>›</div>
       )}
       <button type="button" onClick={onClick} style={{
         display: 'block', width: '100%', textAlign: 'left', cursor: 'pointer',
-        background: active ? BG[tone] : '#fff',
-        border: `1px solid ${active ? TXT[tone] : '#e5e7eb'}`,
+        background: active ? BG[tone] : 'hsl(var(--surface-1))',
+        border: `1px solid ${active ? TXT[tone] : 'hsl(var(--border))'}`,
         borderTop: `3px solid ${TXT[tone]}`,
         borderRadius: 12, padding: '16px 20px',
         transition: 'all 0.15s ease', outline: 'none',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: '#6b7280', marginBottom: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: 'hsl(var(--muted-foreground))', marginBottom: 8 }}>
           {eyebrow}
-          <span style={{ fontSize: 12, transform: active ? 'rotate(180deg)' : 'none', display: 'inline-block', transition: 'transform 0.2s', color: active ? TXT[tone] : '#9ca3af' }}>⌄</span>
+          <span style={{ fontSize: 12, transform: active ? 'rotate(180deg)' : 'none', display: 'inline-block', transition: 'transform 0.2s', color: active ? TXT[tone] : 'hsl(var(--muted-foreground))' }}>⌄</span>
         </div>
         <div style={{ fontSize: 40, fontWeight: 700, color: TXT[tone], lineHeight: 1, marginBottom: 10 }}>{title}</div>
-        <div style={{ fontSize: 12, color: '#6b7280', fontFamily: 'monospace' }}>{sub}</div>
+        <div style={{ fontSize: 12, color: 'hsl(var(--muted-foreground))', fontFamily: 'monospace' }}>{sub}</div>
       </button>
     </div>
   )
@@ -229,8 +229,8 @@ function DrillShell({ tone, eyebrow, title, total, rows, onClose }: {
     <Panel tone={tone} eyebrow={eyebrow} title={title}
       actions={
         <>
-          <span style={{ fontSize: 11, fontFamily: 'monospace', color: '#6b7280' }}>total · {fmt(total)}</span>
-          <button onClick={onClose} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, cursor: 'pointer', border: '1px solid #e5e7eb', background: '#f9fafb', color: '#6b7280', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+          <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'hsl(var(--muted-foreground))' }}>total · {fmt(total)}</span>
+          <button onClick={onClose} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, cursor: 'pointer', border: '1px solid hsl(var(--border))', background: 'hsl(var(--surface-2))', color: 'hsl(var(--muted-foreground))', fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
             Close ✕
           </button>
         </>
@@ -238,19 +238,19 @@ function DrillShell({ tone, eyebrow, title, total, rows, onClose }: {
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
         {rows.map(r => (
-          <div key={r.label} style={{ display: 'grid', gridTemplateColumns: '1fr 140px 52px', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid #f3f4f6' }}>
+          <div key={r.label} style={{ display: 'grid', gridTemplateColumns: '1fr 140px 52px', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid hsl(var(--border))' }}>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{r.label}</div>
-              <div style={{ fontSize: 11, color: '#6b7280', fontFamily: 'monospace' }}>{r.sub}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'hsl(var(--foreground))' }}>{r.label}</div>
+              <div style={{ fontSize: 11, color: 'hsl(var(--muted-foreground))', fontFamily: 'monospace' }}>{r.sub}</div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <Bar val={r.pct} tone={r.tone} height={5} />
-              <span style={{ fontSize: 11.5, fontFamily: 'monospace', color: '#6b7280', width: 44, textAlign: 'right', flexShrink: 0 }}>{fmt(r.count)}</span>
+              <span style={{ fontSize: 11.5, fontFamily: 'monospace', color: 'hsl(var(--muted-foreground))', width: 44, textAlign: 'right', flexShrink: 0 }}>{fmt(r.count)}</span>
             </div>
             <Pill tone={r.tone}>{r.pct}%</Pill>
           </div>
         ))}
-        {rows.length === 0 && <div style={{ color: '#9ca3af', fontSize: 12, padding: '16px 0', textAlign: 'center', fontFamily: 'monospace' }}>No data</div>}
+        {rows.length === 0 && <div style={{ color: 'hsl(var(--muted-foreground))', fontSize: 12, padding: '16px 0', textAlign: 'center', fontFamily: 'monospace' }}>No data</div>}
       </div>
     </Panel>
   )
@@ -358,7 +358,7 @@ export default function OverviewPage() {
   }
 
   // Check stack for modules panel
-  const C = { text: '#111827', muted: '#6b7280', border: '#e5e7eb', card: '#fff', bg: '#f9fafb' }
+  const C = { text: 'hsl(var(--foreground))', muted: 'hsl(var(--muted-foreground))', border: 'hsl(var(--border))', card: 'hsl(var(--surface-1))', bg: 'hsl(var(--surface-2))' }
 
   return (
     <div style={{ fontFamily: 'Inter,system-ui,sans-serif', fontSize: 13, color: C.text }}>
@@ -371,12 +371,12 @@ export default function OverviewPage() {
             <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0, lineHeight: 1.2 }}>Overview</h1>
             <div style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>Scrubbing pipeline · time range controlled from top bar · click a stage to drill</div>
           </div>
-          {loading && <span style={{ fontSize: 11, fontFamily: 'monospace', color: '#9ca3af' }}>Loading…</span>}
+          {loading && <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'hsl(var(--muted-foreground))' }}>Loading…</span>}
         </div>
       </div>
 
       {error && (
-        <div style={{ padding: '10px 14px', marginBottom: 12, borderRadius: 8, fontSize: 12, background: '#fef2f2', border: '1px solid #fca5a5', color: '#dc2626' }}>⚠ {error}</div>
+        <div style={{ padding: '10px 14px', marginBottom: 12, borderRadius: 8, fontSize: 12, background: 'hsl(var(--coral-bg))', border: '1px solid #fca5a5', color: 'hsl(var(--coral-text))' }}>⚠ {error}</div>
       )}
 
       {/* ── Plain-English summary panel ── */}
@@ -386,7 +386,7 @@ export default function OverviewPage() {
             <span style={{ fontSize: 14, flexShrink: 0, marginTop: 1 }}>ℹ</span>
             <div style={{ fontSize: 13, lineHeight: 1.6, color: C.text }}>
               Messages received: <strong>{fmt(totalMsgs)}</strong>.{' '}
-              <strong style={{ color: '#16a34a' }}>{fmt(passedTotal)}</strong> went through ({passRate}% pass rate) and{' '}
+              <strong style={{ color: 'hsl(var(--teal-text))' }}>{fmt(passedTotal)}</strong> went through ({passRate}% pass rate) and{' '}
               <strong style={{ color: TXT.coral }}>{fmt(failedTotal)}</strong> were blocked.{' '}
               {topErr.dlr_code && <>Most failures (<strong>{pct(topErr.pct)}</strong>) are <strong>{topErr.dlr_code} · {topErr.description}</strong>
               {topSender.sender_id && <> — mainly from <strong>{topSender.sender_id}</strong></>}.</>}{' '}
@@ -444,13 +444,13 @@ export default function OverviewPage() {
               <Panel key={i} tone={a.tone}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
                   <Pill tone={a.tone}>{a.severity}</Pill>
-                  <span style={{ fontSize: 10.5, fontFamily: 'monospace', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{a.age}</span>
+                  <span style={{ fontSize: 10.5, fontFamily: 'monospace', color: 'hsl(var(--muted-foreground))', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{a.age}</span>
                 </div>
                 <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>{a.title}</div>
                 <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.55, marginBottom: 10 }}>{a.detail}</div>
-                <div style={{ borderTop: '1px solid #f3f4f6', paddingTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <div style={{ borderTop: '1px solid hsl(var(--border))', paddingTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                   <span style={{ fontSize: 11, fontFamily: 'monospace', color: TXT[a.tone] }}>→ {a.action}</span>
-                  <button style={{ fontSize: 10.5, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.07em', padding: '2px 8px', borderRadius: 5, border: '1px solid #e5e7eb', background: '#f9fafb', cursor: 'pointer', color: C.muted }}>Ack</button>
+                  <button style={{ fontSize: 10.5, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.07em', padding: '2px 8px', borderRadius: 5, border: '1px solid hsl(var(--border))', background: 'hsl(var(--surface-2))', cursor: 'pointer', color: C.muted }}>Ack</button>
                 </div>
               </Panel>
             ))}
@@ -462,7 +462,7 @@ export default function OverviewPage() {
       <SectionLabel tone="purple">24h throughput · submissions / hour</SectionLabel>
       <Panel tone="purple" style={{ marginBottom: 16 }}>
         <LineChart data={trend} tone="purple" />
-        <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', fontSize: 11, fontFamily: 'monospace', color: C.muted }}>
+        <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid hsl(var(--border))', display: 'flex', justifyContent: 'space-between', fontSize: 11, fontFamily: 'monospace', color: C.muted }}>
           <span>peak · {fmt(peakHour._total)} @ {peakHour.hour?.slice(11, 13) || '—'}:00</span>
           <span>total · {fmt(totalMsgs)} submits</span>
           <span>idle hours · {idleHours}</span>
@@ -485,10 +485,10 @@ export default function OverviewPage() {
                   <Sparkline data={[]} tone={tone} />
                 </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, paddingTop: 12, borderTop: '1px solid #f3f4f6' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, paddingTop: 12, borderTop: '1px solid hsl(var(--border))' }}>
                 {[['Passed', d.passed, 'teal'], ['Blocked', d.blocked, 'coral'], ['Pass-rate', d.pass_rate ? pct(d.pass_rate, 0) : '—', 'amber']].map(([lbl, val, c]) => (
                   <div key={lbl as string}>
-                    <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.18em', color: '#9ca3af', marginBottom: 4 }}>{lbl as string}</div>
+                    <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.18em', color: 'hsl(var(--muted-foreground))', marginBottom: 4 }}>{lbl as string}</div>
                     <div style={{ fontSize: 20, fontWeight: 700, color: TXT[c as Tone] }}>{typeof val === 'number' ? fmt(val) : val as string}</div>
                   </div>
                 ))}
@@ -507,7 +507,7 @@ export default function OverviewPage() {
           { label: 'Pass rate', value: passRate + '%', sub: `${fmt(passedTotal)} delivered`, tone: 'amber' as Tone },
         ].map(m => (
           <div key={m.label} style={{ background: C.card, border: `1px solid ${C.border}`, borderTop: `3px solid ${TXT[m.tone]}`, borderRadius: 12, padding: '16px 18px' }}>
-            <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: '#9ca3af', marginBottom: 8 }}>{m.label}</div>
+            <div style={{ fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.2em', color: 'hsl(var(--muted-foreground))', marginBottom: 8 }}>{m.label}</div>
             <div style={{ fontSize: 40, fontWeight: 700, color: TXT[m.tone], lineHeight: 1, marginBottom: 8 }}>{m.value}</div>
             <div style={{ fontSize: 11.5, color: C.muted, fontFamily: 'monospace' }}>{m.sub}</div>
           </div>
@@ -519,7 +519,7 @@ export default function OverviewPage() {
         <Panel tone="amber" eyebrow="Source IP infrastructure" title="Where traffic originates">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
             {(apiData?.sourceIps || []).slice(0, 6).map((s: any, i: number) => (
-              <div key={s.originator_ip || i} style={{ display: 'grid', gridTemplateColumns: '1fr 120px 50px', alignItems: 'center', gap: 12, padding: '9px 0', borderBottom: '1px solid #f3f4f6' }}>
+              <div key={s.originator_ip || i} style={{ display: 'grid', gridTemplateColumns: '1fr 120px 50px', alignItems: 'center', gap: 12, padding: '9px 0', borderBottom: '1px solid hsl(var(--border))' }}>
                 <div>
                   <div style={{ fontFamily: 'monospace', fontSize: 12.5 }}>{s.originator_ip || '—'}</div>
                   <div style={{ fontSize: 11, color: C.muted }}>{fmt(s.total)} msgs</div>
@@ -531,7 +531,7 @@ export default function OverviewPage() {
                 <Pill tone="amber">{pct(s.pct, 0)}</Pill>
               </div>
             ))}
-            {!apiData?.sourceIps?.length && <div style={{ color: '#9ca3af', fontSize: 12, padding: '16px 0', textAlign: 'center', fontFamily: 'monospace' }}>No IP data</div>}
+            {!apiData?.sourceIps?.length && <div style={{ color: 'hsl(var(--muted-foreground))', fontSize: 12, padding: '16px 0', textAlign: 'center', fontFamily: 'monospace' }}>No IP data</div>}
           </div>
         </Panel>
 
@@ -540,7 +540,7 @@ export default function OverviewPage() {
             {tail.slice(0, 6).map((s: any, i: number) => {
               const ok = num(apiData?.failureReasons?.find((r: any) => r.dlr_code === s.dlr_code)?.is_success) === 1 || s.dlr_code === '000'
               return (
-                <div key={i} style={{ display: 'grid', gridTemplateColumns: '56px 1fr 56px', alignItems: 'center', gap: 8, padding: '8px 0', borderBottom: '1px solid #f3f4f6', fontSize: 11.5 }}>
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '56px 1fr 56px', alignItems: 'center', gap: 8, padding: '8px 0', borderBottom: '1px solid hsl(var(--border))', fontSize: 11.5 }}>
                   <span style={{ fontFamily: 'monospace', color: C.muted }}>{ts(s.timestamp)}</span>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -555,7 +555,7 @@ export default function OverviewPage() {
                 </div>
               )
             })}
-            {tail.length === 0 && <div style={{ color: '#9ca3af', fontSize: 12, padding: '16px 0', textAlign: 'center', fontFamily: 'monospace' }}>No recent submissions</div>}
+            {tail.length === 0 && <div style={{ color: 'hsl(var(--muted-foreground))', fontSize: 12, padding: '16px 0', textAlign: 'center', fontFamily: 'monospace' }}>No recent submissions</div>}
           </div>
         </Panel>
       </div>
@@ -568,11 +568,11 @@ export default function OverviewPage() {
               const passR = num(c.total) > 0 ? ((num(c.total) - num(c.failed)) / num(c.total)) * 100 : 100
               const state = passR >= 95 ? 'ok' : passR >= 80 ? 'warn' : 'fail'
               const icon = state === 'ok' ? '✓' : state === 'warn' ? '⚠' : '✕'
-              const iconBg = state === 'ok' ? '#dcfce7' : state === 'warn' ? '#fff7ed' : '#fee2e2'
-              const iconColor = state === 'ok' ? '#166534' : state === 'warn' ? '#92400e' : '#991b1b'
+              const iconBg = state === 'ok' ? 'hsl(var(--teal-bg))' : state === 'warn' ? 'hsl(var(--amber-bg))' : 'hsl(var(--coral-bg))'
+              const iconColor = state === 'ok' ? 'hsl(var(--teal-text))' : state === 'warn' ? 'hsl(var(--amber-text))' : 'hsl(var(--coral-text))'
               const pillTone: Tone = state === 'ok' ? 'teal' : state === 'warn' ? 'amber' : 'coral'
               return (
-                <div key={c.validator || i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: '1px solid #f3f4f6', fontSize: 13 }}>
+                <div key={c.validator || i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: '1px solid hsl(var(--border))', fontSize: 13 }}>
                   <span style={{ width: 24, height: 24, borderRadius: 6, background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: iconColor, fontWeight: 700, flexShrink: 0 }}>{icon}</span>
                   <span style={{ flex: 1, fontWeight: 500 }}>{c.validator} Check</span>
                   <span style={{ fontFamily: 'monospace', fontSize: 12, color: C.muted, width: 40, textAlign: 'right' }}>{fmt(c.total)}</span>
@@ -580,7 +580,7 @@ export default function OverviewPage() {
                 </div>
               )
             })}
-            {checks.length === 0 && <div style={{ color: '#9ca3af', fontSize: 12, padding: '16px 0', textAlign: 'center', fontFamily: 'monospace' }}>No check data</div>}
+            {checks.length === 0 && <div style={{ color: 'hsl(var(--muted-foreground))', fontSize: 12, padding: '16px 0', textAlign: 'center', fontFamily: 'monospace' }}>No check data</div>}
           </div>
         </Panel>
 

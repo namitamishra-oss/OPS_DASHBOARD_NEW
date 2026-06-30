@@ -14,10 +14,11 @@ export async function GET(request: Request) {
       clickhouse.query({
         query: `
           SELECT
-            count()                                              AS total,
-            countIf(d.is_success = 0)                           AS failed,
+            uniq(s.authcode)                                     AS messages,
+            sum(s.total_segments)                                AS total,
+            sumIf(s.total_segments, d.is_success = 0)           AS failed,
             countIf(s.dispatch_status = 2)                      AS in_block,
-            round(countIf(d.is_success = 0) * 100.0 / count(), 2) AS fail_pct,
+            round(sumIf(s.total_segments,d.is_success=0)*100.0/sum(s.total_segments),2) AS fail_pct,
             countIf(s.dispatch_status = 0)                      AS body_none
           FROM ${DB}.sms_cdr s
           LEFT JOIN ${DB}.dlr_code_reference d ON s.dlr_code = d.dlr_code
@@ -27,7 +28,7 @@ export async function GET(request: Request) {
       }),
       clickhouse.query({
         query: `
-          SELECT validation_step AS top_blocker_step, count() AS cnt
+          SELECT validation_step AS top_blocker_step, sum(total_segments) AS cnt
           FROM ${DB}.sms_cdr
           WHERE timestamp >= now() - INTERVAL ${hours} HOUR
             AND dispatch_status != 1
@@ -86,7 +87,7 @@ export async function GET(request: Request) {
           any(d.description) AS description,
           any(d.validator)   AS validator,
           any(d.severity)    AS severity,
-          count()            AS cnt
+          sum(s.total_segments) AS cnt
         FROM ${DB}.sms_cdr s
         LEFT JOIN ${DB}.dlr_code_reference d ON s.dlr_code = d.dlr_code
         WHERE s.timestamp >= now() - INTERVAL ${hours} HOUR
@@ -109,10 +110,10 @@ export async function GET(request: Request) {
       query: `
         SELECT
           if(toString(recipient_number) LIKE '91%', 'domestic', 'international') AS traffic_type,
-          count()                        AS total,
-          countIf(d.is_success = 1)      AS passed,
-          countIf(d.is_success = 0)      AS blocked,
-          round(countIf(d.is_success = 1) * 100.0 / count(), 1) AS pass_rate
+          sum(s.total_segments)           AS total,
+          sumIf(s.total_segments, d.is_success = 1) AS passed,
+          sumIf(s.total_segments, d.is_success = 0) AS blocked,
+          round(sumIf(s.total_segments,d.is_success=1)*100.0/sum(s.total_segments),1) AS pass_rate
         FROM ${DB}.sms_cdr s
         LEFT JOIN ${DB}.dlr_code_reference d ON s.dlr_code = d.dlr_code
         WHERE s.timestamp >= now() - INTERVAL ${hours} HOUR
@@ -126,10 +127,10 @@ export async function GET(request: Request) {
     const kmRes = await clickhouse.query({
       query: `
         SELECT
-          count()                        AS submission,
-          countIf(dispatch_status = 2)   AS scrubbing,
-          countIf(dispatch_status = 0)   AS in_block,
-          round(countIf(d.is_success = 1) * 100.0 / count(), 1) AS pass_rate
+          sum(s.total_segments)           AS submission,
+          sumIf(s.total_segments, dispatch_status = 2) AS scrubbing,
+          sumIf(s.total_segments, dispatch_status = 0) AS in_block,
+          round(sumIf(s.total_segments,d.is_success=1)*100.0/sum(s.total_segments),1) AS pass_rate
         FROM ${DB}.sms_cdr s
         LEFT JOIN ${DB}.dlr_code_reference d ON s.dlr_code = d.dlr_code
         WHERE s.timestamp >= now() - INTERVAL ${hours} HOUR
@@ -143,9 +144,9 @@ export async function GET(request: Request) {
       query: `
         SELECT
           sender_id,
-          count()                      AS total,
-          countIf(d.is_success = 0)    AS blocked,
-          round(countIf(d.is_success = 0) * 100.0 / count(), 1) AS block_pct
+          sum(s.total_segments)          AS total,
+          sumIf(s.total_segments, d.is_success = 0) AS blocked,
+          round(sumIf(s.total_segments,d.is_success=0)*100.0/sum(s.total_segments),1) AS block_pct
         FROM ${DB}.sms_cdr s
         LEFT JOIN ${DB}.dlr_code_reference d ON s.dlr_code = d.dlr_code
         WHERE s.timestamp >= now() - INTERVAL ${hours} HOUR
@@ -185,9 +186,9 @@ export async function GET(request: Request) {
       query: `
         SELECT
           d.validator,
-          count()                      AS total,
-          countIf(d.is_success = 0)    AS failed,
-          round(countIf(d.is_success = 0) * 100.0 / count(), 1) AS fail_rate
+          sum(s.total_segments)          AS total,
+          sumIf(s.total_segments, d.is_success = 0) AS failed,
+          round(sumIf(s.total_segments,d.is_success=0)*100.0/sum(s.total_segments),1) AS fail_rate
         FROM ${DB}.sms_cdr s
         LEFT JOIN ${DB}.dlr_code_reference d ON s.dlr_code = d.dlr_code
         WHERE s.timestamp >= now() - INTERVAL ${hours} HOUR
@@ -205,7 +206,7 @@ export async function GET(request: Request) {
         SELECT
           any(d.description) AS reason,
           s.dlr_code,
-          count()            AS cnt
+          sum(s.total_segments) AS cnt
         FROM ${DB}.sms_cdr s
         LEFT JOIN ${DB}.dlr_code_reference d ON s.dlr_code = d.dlr_code
         WHERE s.timestamp >= now() - INTERVAL ${hours} HOUR

@@ -1,197 +1,228 @@
 /*
  * app/globals.css
- *
- * TAILWIND V4 STYLE — @import se kaam hota hai, koi tailwind.config.ts nahi chahiye
- *
- * Yahan 3 cheezein hain:
- * 1. Tailwind import — saari utility classes available ho jaati hain (bg-white, flex, etc.)
- * 2. CSS variables — light aur dark theme ke colors ek jagah define
- * 3. Base styles — body, scrollbar, etc.
- *
- * Theme kaise kaam karta hai:
- *   [data-theme="dark"] attribute jab <html> pe lagta hai →
- *   dark ke CSS variables activate ho jaate hain →
- *   poori app automatically dark ho jaati hai
+ * Theme-aware CSS variables — light + dark
+ * Cards, backgrounds, text all adapt via data-theme attribute
  */
 
 @import "tailwindcss";
 
-/* ── THEME VARIABLES ── */
-/*
- * :root = light theme (default)
- * Lovable ke exact HSL values use kiye hain
- * HSL format: hue saturation% lightness%
- */
+/* ── LIGHT THEME (default) ─────────────────────────────────────── */
 :root {
-  /* Page background — warm off-white jaise Lovable login page */
-  --background: 40 30% 97%;
-  --foreground: 222 28% 12%;
+  --background:          40 30% 97%;
+  --foreground:          222 28% 12%;
+  --card:                0 0% 100%;
+  --card-foreground:     222 28% 12%;
+  --primary:             174 55% 38%;
+  --primary-foreground:  0 0% 100%;
+  --muted:               40 16% 91%;
+  --muted-foreground:    222 12% 42%;
+  --accent:              174 30% 93%;
+  --accent-foreground:   222 28% 12%;
+  --destructive:         0 72% 50%;
+  --success:             152 62% 38%;
+  --warning:             32 92% 48%;
+  --info:                200 80% 45%;
+  --border:              40 14% 86%;
+  --input:               40 14% 86%;
+  --ring:                174 55% 38%;
+  --radius:              0.5rem;
+  --tone-coral:          6 78% 54%;
+  --tone-amber:          32 92% 46%;
+  --tone-purple:         268 60% 52%;
+  --tone-teal:           174 60% 38%;
+  --nav-bg:              222 28% 8%;
+  --nav-border:          222 20% 14%;
+  --nav-text:            215 20% 75%;
+  --nav-text-muted:      215 14% 45%;
+  --nav-active:          174 60% 55%;
 
-  /* Cards — pure white */
-  --card: 0 0% 100%;
-  --card-foreground: 222 28% 12%;
+  /* ── Semantic surface variables used by page components ── */
+  --surface-1:           0 0% 100%;          /* card background */
+  --surface-2:           40 20% 96%;         /* slightly elevated */
+  --surface-3:           40 16% 91%;         /* inputs, hovers */
+  --text-primary:        222 28% 12%;
+  --text-secondary:      222 14% 40%;
+  --text-muted:          222 12% 58%;
+  --line:                40 14% 86%;
 
-  /* Primary = teal (#1a9e8c) */
-  --primary: 174 55% 38%;
-  --primary-foreground: 0 0% 100%;
+  /* Tone bg/text that shift with theme */
+  --teal-bg:             174 60% 95%;
+  --teal-text:           174 60% 30%;
+  --teal-border:         174 60% 80%;
+  --coral-bg:            6 90% 96%;
+  --coral-text:          6 72% 45%;
+  --coral-border:        6 80% 85%;
+  --amber-bg:            38 100% 95%;
+  --amber-text:          32 80% 38%;
+  --amber-border:        38 90% 80%;
+  --purple-bg:           268 60% 96%;
+  --purple-text:         268 55% 45%;
+  --purple-border:       268 50% 82%;
 
-  /* Muted — light grey backgrounds */
-  --muted: 40 16% 91%;
-  --muted-foreground: 222 12% 42%;
-
-  /* Accent */
-  --accent: 40 20% 90%;
-  --accent-foreground: 222 28% 12%;
-
-  /* Status colors */
-  --destructive: 0 72% 50%;      /* red   */
-  --success: 152 62% 38%;        /* green */
-  --warning: 32 92% 48%;         /* amber */
-  --info: 200 80% 45%;           /* blue  */
-
-  /* Borders & inputs */
-  --border: 40 14% 86%;
-  --input: 40 14% 86%;
-  --ring: 174 55% 38%;
-
-  /* Border radius */
-  --radius: 0.5rem;
-
-  /* Tone accents — used for badges */
-  --tone-coral: 6 78% 54%;
-  --tone-amber: 32 92% 46%;
-  --tone-purple: 268 60% 52%;
-  --tone-teal: 174 60% 38%;
-
-  /* Nav bar — dark even in light mode (matches Lovable/your design) */
-  --nav-bg: 222 28% 8%;
-  --nav-border: 222 20% 14%;
-  --nav-text: 215 20% 75%;
-  --nav-text-muted: 215 14% 45%;
-  --nav-active: 174 60% 55%;
+  /* Input */
+  --input-bg:            0 0% 100%;
+  --input-border:        40 14% 82%;
+  --input-text:          222 28% 12%;
+  --input-placeholder:   222 12% 65%;
 }
 
-/*
- * [data-theme="dark"] — dark theme variables
- * Soft navy/slate — NOT pure black
- * Inspired by VS Code dark + Lovable dark tokens
- */
+/* ── DARK THEME ────────────────────────────────────────────────── */
 [data-theme="dark"] {
-  /* Page — dark navy, NOT #000 */
-  --background: 222 28% 7%;
-  --foreground: 210 20% 96%;
+  --background:          222 28% 7%;
+  --foreground:          210 20% 96%;
+  --card:                222 25% 11%;
+  --card-foreground:     210 20% 96%;
+  --primary:             174 60% 55%;
+  --primary-foreground:  222 28% 7%;
+  --muted:               222 20% 15%;
+  --muted-foreground:    215 14% 55%;
+  --accent:              222 22% 18%;
+  --accent-foreground:   210 20% 96%;
+  --destructive:         0 72% 58%;
+  --success:             152 62% 50%;
+  --warning:             38 92% 58%;
+  --info:                200 90% 60%;
+  --border:              222 18% 20%;
+  --input:               222 18% 20%;
+  --ring:                174 60% 55%;
+  --tone-coral:          6 86% 65%;
+  --tone-amber:          36 95% 60%;
+  --tone-purple:         268 75% 68%;
+  --tone-teal:           174 65% 55%;
+  --nav-bg:              222 30% 5%;
+  --nav-border:          222 20% 12%;
+  --nav-text:            215 20% 70%;
+  --nav-text-muted:      215 14% 40%;
+  --nav-active:          174 60% 55%;
 
-  /* Cards — slightly lighter than page so they're visible */
-  --card: 222 25% 10%;
-  --card-foreground: 210 20% 96%;
+  /* ── Semantic surface variables — dark ── */
+  --surface-1:           222 25% 11%;        /* card background */
+  --surface-2:           222 22% 14%;        /* slightly elevated */
+  --surface-3:           222 20% 18%;        /* inputs, hovers */
+  --text-primary:        210 20% 96%;
+  --text-secondary:      215 16% 70%;
+  --text-muted:          215 14% 50%;
+  --line:                222 18% 20%;
 
-  /* Primary — slightly brighter teal in dark */
-  --primary: 174 60% 55%;
-  --primary-foreground: 222 28% 7%;
+  /* Tone overrides for dark — deeper, lower saturation bg, brighter text */
+  --teal-bg:             174 40% 12%;
+  --teal-text:           174 65% 60%;
+  --teal-border:         174 40% 22%;
+  --coral-bg:            6 50% 13%;
+  --coral-text:          6 80% 65%;
+  --coral-border:        6 50% 25%;
+  --amber-bg:            38 50% 12%;
+  --amber-text:          38 90% 62%;
+  --amber-border:        38 50% 24%;
+  --purple-bg:           268 40% 14%;
+  --purple-text:         268 70% 70%;
+  --purple-border:       268 40% 26%;
 
-  /* Muted */
-  --muted: 222 20% 13%;
-  --muted-foreground: 215 14% 60%;
-
-  /* Accent */
-  --accent: 222 20% 16%;
-  --accent-foreground: 210 20% 96%;
-
-  /* Status colors — brighter in dark bg */
-  --destructive: 0 72% 58%;
-  --success: 152 62% 50%;
-  --warning: 38 92% 58%;
-  --info: 200 90% 60%;
-
-  /* Borders */
-  --border: 222 18% 18%;
-  --input: 222 18% 18%;
-  --ring: 174 60% 55%;
-
-  /* Tone accents */
-  --tone-coral: 6 86% 65%;
-  --tone-amber: 36 95% 60%;
-  --tone-purple: 268 75% 68%;
-  --tone-teal: 174 65% 55%;
-
-  /* Nav — even darker than page */
-  --nav-bg: 222 30% 5%;
-  --nav-border: 222 20% 12%;
-  --nav-text: 215 20% 70%;
-  --nav-text-muted: 215 14% 40%;
-  --nav-active: 174 60% 55%;
+  /* Input — dark readable */
+  --input-bg:            222 22% 14%;
+  --input-border:        222 18% 24%;
+  --input-text:          210 20% 92%;
+  --input-placeholder:   215 14% 45%;
 }
 
-/* ── BASE STYLES ── */
-/*
- * @theme inline — Tailwind v4 mein CSS variables ko
- * Tailwind classes se connect karta hai
- * Matlab: bg-background = background: hsl(var(--background))
- */
+/* ── Tailwind v4 bridge ──────────────────────────────────────────── */
 @theme inline {
-  --color-background: hsl(var(--background));
-  --color-foreground: hsl(var(--foreground));
-  --color-card: hsl(var(--card));
-  --color-card-foreground: hsl(var(--card-foreground));
-  --color-primary: hsl(var(--primary));
-  --color-primary-foreground: hsl(var(--primary-foreground));
-  --color-muted: hsl(var(--muted));
-  --color-muted-foreground: hsl(var(--muted-foreground));
-  --color-destructive: hsl(var(--destructive));
-  --color-success: hsl(var(--success));
-  --color-warning: hsl(var(--warning));
-  --color-border: hsl(var(--border));
-  --color-input: hsl(var(--input));
-  --color-ring: hsl(var(--ring));
-  --color-nav-bg: hsl(var(--nav-bg));
-  --color-nav-active: hsl(var(--nav-active));
-  --radius-default: var(--radius);
-  --font-sans: 'DM Sans', system-ui, sans-serif;
-  --font-mono: 'DM Mono', ui-monospace, monospace;
+  --color-background:        hsl(var(--background));
+  --color-foreground:        hsl(var(--foreground));
+  --color-card:              hsl(var(--card));
+  --color-card-foreground:   hsl(var(--card-foreground));
+  --color-primary:           hsl(var(--primary));
+  --color-primary-foreground:hsl(var(--primary-foreground));
+  --color-muted:             hsl(var(--muted));
+  --color-muted-foreground:  hsl(var(--muted-foreground));
+  --color-destructive:       hsl(var(--destructive));
+  --color-success:           hsl(var(--success));
+  --color-warning:           hsl(var(--warning));
+  --color-border:            hsl(var(--border));
+  --color-input:             hsl(var(--input));
+  --color-ring:              hsl(var(--ring));
+  --color-nav-bg:            hsl(var(--nav-bg));
+  --color-nav-active:        hsl(var(--nav-active));
+  --radius-default:          var(--radius);
+  --font-sans:               'DM Sans', system-ui, sans-serif;
+  --font-mono:               'DM Mono', ui-monospace, monospace;
 }
 
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+/* ── Base ─────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
   height: 100%;
   font-family: var(--font-sans);
   background: hsl(var(--background));
   color: hsl(var(--foreground));
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: 13px; line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition: background 0.25s ease, color 0.25s ease;
+}
+
+/* ── Typography — explicit color so dark mode always works ─────────── */
+h1, h2, h3, h4, h5, h6 {
+  color: hsl(var(--foreground));
+}
+p {
+  color: hsl(var(--foreground));
+}
+/* Inputs and selects follow theme */
+input, select, textarea {
+  background: hsl(var(--input-bg));
+  color: hsl(var(--input-text));
+  border-color: hsl(var(--input-border));
+}
+input::placeholder {
+  color: hsl(var(--input-placeholder));
 }
 
 a { color: inherit; text-decoration: none; }
 button { font-family: inherit; cursor: pointer; }
 input, select, textarea { font-family: inherit; }
 
-/* Scrollbar */
+/* ── Scrollbar ─────────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb {
-  background: hsl(var(--border));
-  border-radius: 99px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground));
-}
+::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground)); }
 
-/* Focus */
-:focus-visible {
-  outline: 2px solid hsl(var(--ring));
-  outline-offset: 2px;
-}
+/* ── Focus ─────────────────────────────────────────────────────────── */
+:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
 :focus:not(:focus-visible) { outline: none; }
 
-/* Live dot pulse animation */
-@keyframes pulse-dot {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.4; }
-}
+/* ── Live dot pulse ────────────────────────────────────────────────── */
+@keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 .pulse { animation: pulse-dot 2s ease-in-out infinite; }
+
+/* ── Theme-aware card ──────────────────────────────────────────────── */
+/* All pages should use these classes instead of hardcoded colors */
+.ops-card {
+  background: hsl(var(--surface-1));
+  border: 1px solid hsl(var(--line));
+  border-radius: 14px;
+  transition: background 0.25s, border-color 0.25s;
+}
+.ops-kpi-teal   { background: hsl(var(--teal-bg));   border: 1px solid hsl(var(--teal-border));   color: hsl(var(--teal-text)); }
+.ops-kpi-coral  { background: hsl(var(--coral-bg));  border: 1px solid hsl(var(--coral-border));  color: hsl(var(--coral-text)); }
+.ops-kpi-amber  { background: hsl(var(--amber-bg));  border: 1px solid hsl(var(--amber-border));  color: hsl(var(--amber-text)); }
+.ops-kpi-purple { background: hsl(var(--purple-bg)); border: 1px solid hsl(var(--purple-border)); color: hsl(var(--purple-text)); }
+
+/* Input consistent across themes */
+.ops-input {
+  background:   hsl(var(--input-bg));
+  border:       1.5px solid hsl(var(--input-border));
+  color:        hsl(var(--input-text));
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  width: 100%;
+}
+.ops-input::placeholder { color: hsl(var(--input-placeholder)); }
+.ops-input:focus {
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.15);
+}

@@ -27,7 +27,7 @@ function Kpi({ label, value, delta, tone = 'teal' }: { label: string; value: str
   return (
     <div style={{ background: t.bg, border: `1px solid ${t.border}`, borderRadius: 12, padding: '16px 18px' }}>
       <div style={{ fontSize: 11, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.14em', color: t.text, marginBottom: 6 }}>{label}</div>
-      <div style={{ fontSize:14, fontWeight: 700, color: 'var(--foreground, #e2e8f0)', lineHeight: 1.1 }}>{value}</div>
+      <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--foreground, #e2e8f0)', lineHeight: 1.1 }}>{value}</div>
       {delta && <div style={{ fontSize: 11, color: 'var(--muted-foreground, #94a3b8)', marginTop: 4, fontFamily: 'monospace' }}>{delta}</div>}
     </div>
   )
@@ -78,9 +78,31 @@ function ActionBtn({ onClick, icon, label }: { onClick?: () => void; icon: React
 }
 
 // ── Main Component ─────────────────────────────────────────────────────────────
+function TrafficToggle({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const opts = [
+    { id: 'all',           label: 'All' },
+    { id: 'domestic',      label: '🏠 Domestic' },
+    { id: 'international', label: '✈️ International' },
+  ]
+  return (
+    <div style={{ display: 'flex', gap: 4, background: 'var(--muted, #334155)', padding: 3, borderRadius: 8 }}>
+      {opts.map(o => (
+        <button key={o.id} onClick={() => onChange(o.id)}
+          style={{ padding: '5px 12px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 12, fontFamily: 'monospace', fontWeight: value === o.id ? 700 : 400,
+            background: value === o.id ? '#20B2AA' : 'transparent',
+            color: value === o.id ? '#000' : 'var(--muted-foreground, #94a3b8)',
+            transition: 'all 0.15s' }}>
+          {o.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export default function Scrubbing() {
   const { hours, days, from, to } = useDashboardControls()
   const [activeStep, setActiveStep] = useState<string | null>(null)
+  const [traffic, setTraffic]       = useState('all')
   const [data, setData]             = useState<any>(null)
   const [loading, setLoading]       = useState(true)
   const [error, setError]           = useState('')
@@ -93,7 +115,8 @@ export default function Scrubbing() {
       if (activeStep) params.set('step', activeStep)
       if (from && to) { params.set('from', from); params.set('to', to) }
       else if (days > 0) params.set('days', String(days))
-      else params.set('hours', String(hours))
+      else params.set('hours', String(Number.isFinite(hours) && hours > 0 ? hours : 24))
+      if (traffic !== 'all') params.set('traffic', traffic)
       const res = await fetch(`/api/scrubbing?${params}`)
       if (!res.ok) throw new Error(await res.text())
       setData(await res.json())
@@ -102,7 +125,7 @@ export default function Scrubbing() {
     } finally {
       setLoading(false)
     }
-  }, [hours, days, from, to, activeStep])
+  }, [hours, days, from, to, activeStep, traffic])
 
   useEffect(() => { load() }, [load])
 
@@ -130,6 +153,7 @@ export default function Scrubbing() {
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 11, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.18em', color: '#20B2AA', marginBottom: 6 }}>GoFlipo Scrubbing</div>
         <h1 style={{ fontSize: 28, fontWeight: 700, color: 'var(--foreground, #e2e8f0)', margin: 0 }}>Scrubbing &amp; Block Analysis</h1>
+        <div style={{ marginTop: 12 }}><TrafficToggle value={traffic} onChange={(v) => { setTraffic(v) }} /></div>
         <p style={{ fontSize: 13, color: 'var(--muted-foreground, #94a3b8)', marginTop: 6 }}>
           Validation steps, error codes, and the audit trail of every blocked submission
         </p>
