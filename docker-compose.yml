@@ -9,6 +9,6 @@ services:
     ports:
       - "5433:5432"   # 5433 use karo taaki production DB ke saath conflict na ho
     volumes:
-      - own_postgres_data:/var/lib/postgresql/data
+      - own_postgres_data:/var/lib/postgresql/data  #persistent storage where data is safe
 volumes:
   own_postgres_data:

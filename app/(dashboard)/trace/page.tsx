@@ -1,6 +1,8 @@
 'use client'
 // app/(dashboard)/trace/page.tsx  — Trace + Scrubbing unified
 import React, { useEffect, useState, useCallback } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
 import { useDashboardControls } from '@/components/Topbar'
 
 // ── Inline icons ──────────────────────────────────────────────────────────────
@@ -24,6 +26,12 @@ type Tone = keyof typeof T
 const TONES: Tone[] = ['coral','amber','purple','teal','coral','amber','purple','teal']
 
 const fmt = (n: number | string) => Number(n).toLocaleString('en-IN')
+
+// Normalize date "YYYY-MM-DD" → "YYYY-MM-DD HH:MM:SS" for ClickHouse
+function normDate(d: string, end = false) {
+  if (!d) return ''
+  return d + (end ? ' 23:59:59' : ' 00:00:00')
+}
 
 // ── Reusable components ───────────────────────────────────────────────────────
 function Kpi({ label, value, sub, tone = 'teal' }: { label: string; value: string | number; sub?: string; tone?: Tone }) {
@@ -107,24 +115,36 @@ type Tab = 'trace' | 'scrubbing'
 export default function TraceScrubbing() {
   const { toApiParams, refreshTick } = useDashboardControls()
 
+  // ── Read URL params BEFORE state init so first load fires with them ─────────
+  const searchParams = useSearchParams()
+  const _urlSearch  = searchParams?.get('search')  || ''
+  const _urlSender  = searchParams?.get('sender')  || ''
+  const _urlTraffic = searchParams?.get('traffic') || 'all'
+  const _urlTab     = (searchParams?.get('tab') as Tab) || 'trace'
+
   // ── State ─────────────────────────────────────────────────────────────────
-  const [tab,         setTab]         = useState<Tab>('trace')
-  const [traffic,     setTraffic]     = useState('all')
+  const [tab,         setTab]         = useState<Tab>(_urlTab)
+  const [traffic,     setTraffic]     = useState(_urlTraffic)
   const [activeStep,  setActiveStep]  = useState('')
 
-  // Search fields
-  const [searchInput2, setSearchInput2] = useState('')
+  // Search fields — pre-filled from URL
+  const [searchInput2, setSearchInput2] = useState(_urlSearch)
   const [authInput,    setAuthInput]    = useState('')
-  const [senderInput,  setSenderInput]  = useState('')
+  const [senderInput,  setSenderInput]  = useState(_urlSender)
   const [codeFilter,   setCodeFilter]   = useState('')
 
-  // Applied (committed) search state
-  const [appliedSearch,  setAppliedSearch]  = useState('')
+  // Applied (committed) search state — also pre-filled from URL
+  const [appliedSearch,  setAppliedSearch]  = useState(_urlSearch)
   const [appliedAuth,    setAppliedAuth]    = useState('')
-  const [appliedSender,  setAppliedSender]  = useState('')
+  const [appliedSender,  setAppliedSender]  = useState(_urlSender)
 
   const [page,    setPage]    = useState(1)
   const [expanded, setExpanded] = useState<string | null>(null)
+
+  // ── Local date range (overrides Topbar when set) ──────────────────────────
+  const [fromDate,    setFromDate]    = useState('')
+  const [toDate,      setToDate]      = useState('')
+  const [activeQuick, setActiveQuick] = useState('')
   const [data,    setData]    = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState('')
@@ -137,7 +157,11 @@ export default function TraceScrubbing() {
       // Read toApiParams() fresh on every load call — ensures time range is current
       const api = toApiParams()
       const p   = new URLSearchParams()
-      if (api.from && api.to)         { p.set('from', api.from); p.set('to', api.to) }
+      // Local date range overrides Topbar when set
+      if (fromDate && toDate) {
+        p.set('from', normDate(fromDate, false))
+        p.set('to',   normDate(toDate,   true))
+      } else if (api.from && api.to)   { p.set('from', api.from); p.set('to', api.to) }
       else if (api.days)                p.set('days',  String(api.days))
       else                              p.set('hours', String(api.hours ?? 24))
       if (traffic !== 'all')            p.set('traffic', traffic)
@@ -155,10 +179,10 @@ export default function TraceScrubbing() {
     } finally {
       setLoading(false)
     }
-  }, [tab, page, toApiParams, refreshTick, traffic, appliedSearch, appliedAuth, appliedSender, codeFilter, activeStep])
+  }, [tab, page, toApiParams, refreshTick, traffic, appliedSearch, appliedAuth, appliedSender, codeFilter, activeStep, fromDate, toDate])
 
   useEffect(() => { load() }, [load])
-  useEffect(() => { setPage(1) }, [tab, traffic, codeFilter, activeStep, appliedSearch, appliedAuth, appliedSender])
+  useEffect(() => { setPage(1) }, [tab, traffic, codeFilter, activeStep, appliedSearch, appliedAuth, appliedSender, fromDate, toDate])
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const submitSearch = (e: React.FormEvent) => {
@@ -172,10 +196,10 @@ export default function TraceScrubbing() {
   const clearAll = () => {
     setSearchInput2(''); setAuthInput(''); setSenderInput('')
     setAppliedSearch(''); setAppliedAuth(''); setAppliedSender('')
-    setCodeFilter(''); setActiveStep(''); setPage(1)
+    setCodeFilter(''); setActiveStep(''); setFromDate(''); setToDate(''); setActiveQuick(''); setPage(1)
   }
 
-  const hasFilters = appliedSearch || appliedAuth || appliedSender || codeFilter || activeStep || traffic !== 'all'
+  const hasFilters = appliedSearch || appliedAuth || appliedSender || codeFilter || activeStep || traffic !== 'all' || fromDate || toDate
 
   const exportCSV = () => {
     const tableRows = tab === 'trace' ? (data?.rows ?? []) : (data?.log ?? [])
@@ -202,6 +226,30 @@ export default function TraceScrubbing() {
   const pag       = data?.pagination ?? {}
   const tableRows = tab === 'trace' ? rows : log
   const maxStep   = Math.max(...steps.map((s: any) => Number(s.count)), 1)
+
+  const QUICK = [
+    { label: '1H',  hours: 1  },
+    { label: '6H',  hours: 6  },
+    { label: '24H', hours: 24 },
+    { label: '48H', hours: 48 },
+    { label: '7D',  days:  7  },
+    { label: '30D', days:  30 },
+  ]
+  const applyQuick = (q: typeof QUICK[0]) => {
+    // Toggle off
+    if (activeQuick === q.label) { setActiveQuick(''); setFromDate(''); setToDate(''); setPage(1); return }
+    setActiveQuick(q.label)
+    // Convert quick range to absolute date strings so load() uses local override
+    const now  = new Date()
+    const end  = new Date(now)
+    const start = new Date(now)
+    if ((q as any).hours) start.setHours(start.getHours() - (q as any).hours)
+    else if ((q as any).days) start.setDate(start.getDate() - (q as any).days)
+    const fmt = (d: Date) => d.toISOString().slice(0, 10)  // YYYY-MM-DD
+    setFromDate(fmt(start))
+    setToDate(fmt(end))
+    setPage(1)
+  }
 
   // ── Traffic toggle ─────────────────────────────────────────────────────────
   const trafficOpts = [
@@ -319,6 +367,66 @@ export default function TraceScrubbing() {
             </div>
           </div>
 
+          {/* ── Date Range row ──────────────────────────────────────────── */}
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, flexWrap: 'wrap', paddingTop: 4, paddingBottom: 2 }}>
+
+            {/* Quick ranges */}
+            <div>
+              <label style={{ display: 'block', fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'hsl(var(--muted-foreground))', marginBottom: 5 }}>Quick range</label>
+              <div style={{ display: 'flex', gap: 4 }}>
+                {QUICK.map(q => (
+                  <button key={q.label} type="button" onClick={() => applyQuick(q)}
+                    style={{ padding: '5px 10px', fontSize: 11.5, borderRadius: 6, border: 'none', cursor: 'pointer', fontFamily: 'monospace', fontWeight: activeQuick === q.label ? 700 : 400,
+                      background: activeQuick === q.label ? 'hsl(var(--primary))' : 'hsl(var(--accent))',
+                      color:      activeQuick === q.label ? 'hsl(var(--primary-foreground))' : 'hsl(var(--muted-foreground))',
+                      transition: 'all 0.15s' }}>
+                    {q.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ width: 1, height: 36, background: 'hsl(var(--border))', flexShrink: 0 }} />
+
+            {/* From date */}
+            <div>
+              <label style={{ display: 'block', fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'hsl(var(--muted-foreground))', marginBottom: 5 }}>From</label>
+              <input type="date" value={fromDate}
+                onChange={e => { setFromDate(e.target.value); setActiveQuick('') }}
+                style={{ ...smInput(), minWidth: 150, colorScheme: 'dark' }}
+                onFocus={e => { e.currentTarget.style.borderColor = 'hsl(var(--primary))' }}
+                onBlur={e  => { e.currentTarget.style.borderColor = 'hsl(var(--input-border))' }}
+              />
+            </div>
+
+            {/* To date */}
+            <div>
+              <label style={{ display: 'block', fontSize: 10, fontFamily: 'monospace', textTransform: 'uppercase', letterSpacing: '0.12em', color: 'hsl(var(--muted-foreground))', marginBottom: 5 }}>To</label>
+              <input type="date" value={toDate}
+                onChange={e => { setToDate(e.target.value); setActiveQuick('') }}
+                style={{ ...smInput(), minWidth: 150, colorScheme: 'dark' }}
+                onFocus={e => { e.currentTarget.style.borderColor = 'hsl(var(--primary))' }}
+                onBlur={e  => { e.currentTarget.style.borderColor = 'hsl(var(--input-border))' }}
+              />
+            </div>
+
+            {/* Clear dates */}
+            {(fromDate || toDate) && (
+              <button type="button"
+                onClick={() => { setFromDate(''); setToDate(''); setActiveQuick('') }}
+                style={{ padding: '7px 12px', fontSize: 11.5, background: 'hsl(var(--accent))', border: '1px solid hsl(var(--border))', borderRadius: 7, cursor: 'pointer', color: 'hsl(var(--muted-foreground))', alignSelf: 'flex-end' }}>
+                ✕ Clear dates
+              </button>
+            )}
+
+            {/* Date range chip */}
+            {fromDate && toDate && (
+              <div style={{ alignSelf: 'flex-end', padding: '5px 12px', background: 'hsl(var(--amber-bg))', border: '1px solid hsl(var(--amber-border))', borderRadius: 99, fontSize: 11, fontFamily: 'monospace', color: 'hsl(var(--amber-text))' }}>
+                📅 {fromDate.slice(5)} → {toDate.slice(5)}
+              </div>
+            )}
+          </div>
+
           {/* Action buttons */}
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <button type="submit"
@@ -343,6 +451,8 @@ export default function TraceScrubbing() {
             {codeFilter     && <Chip tone="coral">code: {codeFilter}</Chip>}
             {activeStep     && <Chip tone="coral">step: {activeStep}</Chip>}
             {traffic !== 'all' && <Chip tone="teal">{traffic}</Chip>}
+            {(fromDate || activeQuick) && <Chip tone="amber">{activeQuick || `${fromDate} → ${toDate}`}</Chip>}
+            {fromDate && toDate && <Chip tone="amber">📅 {fromDate.slice(5)} → {toDate.slice(5)}</Chip>}
           </div>
         )}
       </Card>
